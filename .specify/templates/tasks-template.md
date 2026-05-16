@@ -50,7 +50,8 @@ description: "Task list template for feature implementation"
 
 - [ ] T001 Create project structure per implementation plan
 - [ ] T002 Initialize [language] project with [framework] dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+- [ ] T003 [P] Configure linting, static analysis, and formatting tools (Constitution I: Code Quality)
+- [ ] T004 [P] Configure test framework and coverage reporting (Constitution II: Testing Standards)
 
 ---
 
@@ -62,12 +63,13 @@ description: "Task list template for feature implementation"
 
 Examples of foundational tasks (adjust based on your project):
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T005 Setup database schema and migrations framework
+- [ ] T006 [P] Implement authentication/authorization framework
+- [ ] T007 [P] Setup API routing and middleware structure
+- [ ] T008 Create base models/entities that all stories depend on
+- [ ] T009 Configure error handling and logging infrastructure
+- [ ] T010 Setup environment configuration management
+- [ ] T011 [P] Configure performance benchmark harness for critical paths (Constitution IV: Performance)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -151,9 +153,11 @@ Examples of foundational tasks (adjust based on your project):
 **Purpose**: Improvements that affect multiple user stories
 
 - [ ] TXXX [P] Documentation updates in docs/
-- [ ] TXXX Code cleanup and refactoring
-- [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
+- [ ] TXXX Code cleanup and refactoring (Constitution I: Code Quality — remove dead code, resolve TODOs)
+- [ ] TXXX Validate p95 latency targets met; run performance benchmarks (Constitution IV: Performance)
+- [ ] TXXX [P] Verify test coverage ≥ 80% for all new modules; fix gaps (Constitution II: Testing Standards)
+- [ ] TXXX UX review: validate design system conformance and accessibility (Constitution III: UX Consistency)
+- [ ] TXXX [P] Review all spec, plan, quickstart, and user-facing docs are authored in zh-TW; translate any non-compliant content (Constitution V: Documentation Language)
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
 

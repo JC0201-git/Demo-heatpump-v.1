@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] **I. Code Quality**: Linting tool and configuration identified; cyclomatic complexity budget documented in Technical Context.
+- [ ] **II. Testing Standards**: Test framework chosen; coverage target (≥ 80%) noted; TDD approach confirmed for this feature.
+- [ ] **III. UX Consistency**: Design system tokens referenced (if UI); WCAG 2.1 AA requirements acknowledged for new UI components.
+- [ ] **IV. Performance Requirements**: p95 latency targets documented; memory budget defined; benchmark approach identified for critical paths.
+- [ ] **V. Documentation Language**: This plan and all linked spec/quickstart documents are authored in Traditional Chinese (zh-TW); user-facing text (UI copy, error messages) confirmed zh-TW.
 
 ## Project Structure
 

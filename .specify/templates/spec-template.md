@@ -1,5 +1,8 @@
 # Feature Specification: [FEATURE NAME]
 
+> ⚠️ **語言規範（Constitution V）**：本規格並所有使用者小子資料必須使用繁體中文（zh-TW）撑寫。
+> Language requirement (Constitution V): This specification and all user-facing content MUST be written in Traditional Chinese (zh-TW).
+
 **Feature Branch**: `[###-feature-name]`  
 **Created**: [DATE]  
 **Status**: Draft  
