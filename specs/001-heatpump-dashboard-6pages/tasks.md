@@ -57,6 +57,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 ### 2B：認證 API（Auth Backend）
 
 - [ ] T018 實作認證路由（`POST /api/auth/login`：bcrypt 驗密 + 設定 httpOnly JWT cookie + rate-limit 10次/分；`POST /api/auth/logout`：清除 cookie；`GET /api/auth/me`：回傳登入資訊；登入失敗統一回傳「帳號或密碼錯誤」防帳號枚舉）→ `backend/src/routes/auth.ts`
+- [ ] T107 [P] 認證 API 整合測試（`POST /api/auth/login` 正確帳密 → 驗回傳 httpOnly cookie 且可存取受保護路由；`POST /api/auth/logout` → 驗 cookie 清除後 401；`GET /api/auth/me` → 驗回傳使用者資訊；登入失敗驗統一回傳「帳號或密碼錯誤」防帳號枚舉；連續第 11 次登入應回傳 429；AAA 模式；TDD：測試先於 T018 實作；Constitution II 合規）→ `backend/tests/integration/auth.test.ts`
 
 ### 2C：前端基礎設施
 
@@ -149,6 +150,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T053 [US2] 組裝 RiskRanking 頁面（整合 LastUpdatedBadge + RiskTable + RankBadge + RankChangeBadge；usePolling 30s 刷新）→ `frontend/src/pages/RiskRanking/RiskRankingPage.tsx`
 - [ ] T092 [US2] US2 整合測試：風險排序 happy-path（GET /api/risk/top-devices → 驗回傳恰好 10 筆、依 risk_score 降序排列、每筆含 riskReasons 陣列與 suggestedAction 及 rankChange；AAA 模式；TDD：測試先於實作）→ `backend/tests/integration/risk.test.ts`
 - [ ] T102 [P] [US2] US2 前端單元測試：RiskTable / RankBadge / RankChangeBadge 元件（Vitest；測試項目：Top 3 金色 badge 渲染、↑/↓/− 方向標示正確、建議行動標籤依分數正確顯示；覆蓋率 ≥ 80%；TDD：測試先於元件實作）→ `frontend/tests/unit/RiskRanking/`
+- [ ] T111 [P] [US2] riskScoreService 單元測試（Constitution II NON-NEGOTIABLE：TDD 用於風險分數計算；Arrange：stub MySQL 查詢分別返回各維度測試資料；Act：呼叫 `calculateRiskScore()` 及各維度計算子函式；Assert：六維度各自獨立驗算（alert_severity w=30、recent_anomaly_7d w=20、offline_hours w=20、open_work_orders w=15、energy_anomaly w=10、overdue_maintenance w=5）、正規化邊界值（0 / 50 / 100）、加權加總等於 100 時整體計算結果一致、輸出值夾至 [0, 100]；TDD：測試須先於 T048 完整實作撰寫並確認失敗；覆蓋率目標 ≥ 80%）→ `backend/tests/unit/services/riskScoreService.test.ts`
 
 **Checkpoint**：US2 可獨立測試——Top 10 排序正確；排名變動標示正確
 
@@ -242,10 +244,13 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T086 [P] 確認深色主題一致性（全部 6 頁使用 Tailwind 設計 Token；ECharts 圖表設定深色背景 + 高對比色；WCAG 2.1 AA 對比度驗證）
 - [ ] T087 [P] 確認離線設備跨頁一致顯示（即時數值欄位顯示「--」；StatusBadge 灰色；附最後心跳時間戳；跨 DeviceList、AlertCenter、RiskRanking 一致）
 - [ ] T088 [P] 對全專案執行 ESLint + Prettier 最終校正（frontend/ + backend/；確認 Constitution I 通過）
-- [ ] T096 [P] 建立 CI 效能基準測試腳本（`GET /api/devices` p95 ≤500ms + `GET /api/alerts` p95 ≤500ms；採用 Autocannon 腳本於 local Docker 環境執行；整合至 CI pipeline，PR 觸發條件：修改 routes/devices.ts 或 routes/alerts.ts；確認 Constitution IV 合規）→ `backend/tests/performance/benchmark.ts`、`.github/workflows/perf.yml`
+- [ ] T096 [P] 建立 CI 效能基準測試腳本（`GET /api/devices` p95 ≤500ms + `GET /api/alerts` p95 ≤500ms + `GET /api/risk/top-devices` 快取冷啟動 p95 ≤500ms + `GET /api/reports/monthly` 快取冷啟動 p95 ≤500ms + `GET /api/executive/summary` 快取冷啟動 p95 ≤500ms；採用 Autocannon 腳本於 local Docker 環境執行；整合至 CI pipeline，PR 觸發條件：修改 routes/devices.ts、routes/alerts.ts、routes/risk.ts、routes/reports.ts 或 routes/executive.ts；確認 Constitution IV 合規）→ `backend/tests/performance/benchmark.ts`、`.github/workflows/perf.yml`
 - [ ] T097 [P] 驗收告警中心 SC-004 效能（80 筆告警下頁面載入 ≤3 秒）：seed 80 筆 mock 告警，Supertest 量測 `GET /api/alerts?limit=50` p95 ≤500ms；確認 node-cache TTL 10s 快取命中；人工驗收前端 AlertCenter 首次載入達標，記錄截圖至 `docs/perf-sc004.png` → `backend/tests/performance/alertCenter.perf.ts`
 - [ ] T098 [P] 驗收月報 PDF SC-003 效能（SC-003：PDF 產生 ≤30 秒）：於前端開發環境以計時腳本截取完整 `#monthly-report` DOM 並量測 `jsPDF.save()` 完成時間；若平均超過 30s，分析 html2canvas 渲染瓶頸（imageQuality 調整、圖層拆分）；人工驗收後記錄截圖至 `docs/perf-sc003.png` → `frontend/src/utils/pdfPerfTest.ts`
 - [ ] T099 [P] 驗證前後端測試覆蓋率達標（Constitution II）：**前置條件：T100–T105 前端單元測試任務須已完成**；前端執行 `vitest run --coverage` 驗證各模組覆蓋率 ≥ 80%；後端執行 `jest --coverage --coverageThreshold` 驗證相同門櫛；CI pipeline（`.github/workflows/ci.yml`）整合覆蓋率閥値檢查，低於門櫛則阻斷 PR 合並；輸出 lcov 格式報告 → `frontend/vite.config.ts`（coverage 設定）、`backend/jest.config.ts`（coverageThreshold）、`.github/workflows/ci.yml`
+- [ ] T108 [P] 執行 WCAG 2.1 AA 無障礙合規審查（Constitution III MUST：所有新 UI 元件須符合 WCAG 2.1 AA 最低標準）：於前端 Vitest 環境以 `jest-axe` 對 StatusBadge、AlertBanner、DeviceTable、AlertTable、RiskTable 及各頁面主要元件執行 axe 規則掃描；所有 axe 違規項目須歸零後方可合並 PR；人工補驗鍵盤導航（Tab / Enter / Esc）與螢幕閱讀器焦點順序；確認主要文字顏色對比率達 AA 標準（≥ 4.5:1）→ `frontend/tests/accessibility/`
+- [ ] T109 [P] 執行使用者工作流程可用性審查（Constitution III MUST：所有使用者介面工作流程須於上線前完成至少一次可用性審查）：依 spec.md US1–US6 的 Acceptance Scenarios 逐一人工走查六頁工作流程；審查項目包含導覽列切換流暢性、告警指派三步驟流程（SC-002）、月份切換重新載入回應、PDF 匯出完整性；審查結果（通過 / 待改善）記錄至 `docs/ux-review.md`；有待改善項目須於 PR 合並前修正或建立追蹤 Issue
+- [ ] T110 [P] 驗收老闆決策頁 SC-005（主管可在 5 分鐘內做出是否承接新客戶的決策）：帶入維運負載與客戶風險模擬資料，由一名具業務背景的測試者進入老闆決策頁，計時從進入頁面至完成「是否可承接 N 台新設備」判斷的總時間；目標 ≤ 5 分鐘；若未達標，識別資訊呈現瓶頸並建立改善 Issue；驗收結果記錄至 `docs/acceptance-sc005.md`
 - [ ] T089 驗證 Docker Compose 全端整合啟動（nginx 代理、前後端連線、健康檢查端點回應 healthy）→ `docker/docker-compose.yml`
 
 ---
@@ -285,10 +290,10 @@ Phase 9（Polish）
 
 | 里程碑 | 交付內容 | 累計任務數 |
 |--------|----------|-----------|
-| M1 MVP | 登入 + 設備總覽 | ~39 個任務（Phase 1–3）|
-| M2 P1 完成 | + 告警中心 | ~52 個任務（+ Phase 4）|
-| M3 P2 完成 | + 風險排序 + 單機履歷 | ~73 個任務（+ Phase 5–6）|
-| M4 全功能 | + 月報 + 老闆決策頁 + 收尾 | 105 個任務（+ Phase 7–9）|
+| M1 MVP | 登入 + 設備總覽 | 41 個任務（Phase 1–3）|
+| M2 P1 完成 | + 告警中心 | 54 個任務（+ Phase 4）|
+| M3 P2 完成 | + 風險排序 + 單機履歷 | 76 個任務（+ Phase 5–6）|
+| M4 全功能 | + 月報 + 老闆決策頁 + 收尾 | 111 個任務（+ Phase 7–9）|
 
 ### 漸進式交付原則
 
@@ -305,16 +310,16 @@ Phase 9（Polish）
 | Phase | 任務數 | 說明 |
 |-------|--------|------|
 | Phase 1: Setup | 6（T001–T006）| 專案初始化 |
-| Phase 2: Foundational | 25（T007–T029、T065、T106）| 後端 + 前端基礎建設 + Auth + 每日彙總工作 |
+| Phase 2: Foundational | 26（T007–T029、T065、T106、T107）| 後端 + 前端基礎建設 + Auth + 認證整合測試 + 每日彙總工作 |
 | Phase 3: US1 設備總覽 | 9（T030–T036、T090、T100）| P1 🎯 MVP |
 | Phase 4: US4 告警中心 | 13（T037–T047、T091、T101）| P1 |
-| Phase 5: US2 風險排序 | 8（T048–T053、T092、T102）| P2 |
+| Phase 5: US2 風險排序 | 9（T048–T053、T092、T102、T111）| P2 |
 | Phase 6: US3 單機履歷 | 13（T054–T064、T093、T103）| P2 |
 | Phase 7: US5 月報雛形 | 10（T066–T073、T094、T104）| P3 |
 | Phase 8: US6 老闆決策頁 | 11（T074–T082、T095、T105）| P3 |
-| Phase 9: Polish | 11（T083–T089、T096–T099）| 收尾 |
-| **合計** | **106** | |
+| Phase 9: Polish | 14（T083–T089、T096–T099、T108–T110）| 收尾 |
+| **合計** | **111** | |
 
-**平行機會**：106 個任務中，標記 [P] 的任務共 **54 個**，可大幅縮短實際開發時程。
+**平行機會**：111 個任務中，標記 [P] 的任務共 **55 個**，可大幅縮短實際開發時程。
 
-**建議 MVP 範圍**：Phase 1 + Phase 2 + Phase 3（T001–T036、T065、T106、T090、T100），共 40 個任務，交付設備總覽核心功能。
+**建議 MVP 範圍**：Phase 1 + Phase 2 + Phase 3（T001–T036、T065、T106、T107、T090、T100），共 41 個任務，交付設備總覽核心功能。
