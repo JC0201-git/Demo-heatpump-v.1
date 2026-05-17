@@ -51,12 +51,12 @@ PORT=3001
 JWT_SECRET=請替換為至少64字元的隨機字串
 JWT_EXPIRY=8h
 
-# ===== SQL Server Express =====
-SQLSERVER_HOST=<EC2-B 私有 IP>
-SQLSERVER_PORT=1433
-SQLSERVER_DATABASE=heatpump_db
-SQLSERVER_USER=<帳號>
-SQLSERVER_PASSWORD=<密碼>
+# ===== MySQL 8.0 =====
+MYSQL_HOST=<EC2-B 私有 IP>
+MYSQL_PORT=3306
+MYSQL_DATABASE=heatpump_db
+MYSQL_USER=<帳號>
+MYSQL_PASSWORD=<密碼>
 
 # ===== InfluxDB 1.8 =====
 INFLUXDB_HOST=http://<EC2-B 私有 IP>:8086
@@ -102,7 +102,7 @@ npm run dev                 # 啟動 Vite（listen on :5173）
 curl http://localhost:3001/api/system/health
 
 # 預期回應
-{"data":{"status":"healthy","influxdb":"connected","sqlserver":"connected","uptime":...}}
+{"data":{"status":"healthy","influxdb":"connected","mysql":"connected","uptime":...}}
 ```
 
 ---
@@ -143,7 +143,7 @@ docker compose down
 
 ## 五、資料庫初始化
 
-### 5.1 SQL Server 建立 Schema
+### 5.1 MySQL 建立 Schema
 
 ```bash
 # 確認資料庫連線後執行

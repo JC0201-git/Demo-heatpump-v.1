@@ -53,21 +53,22 @@ WHERE "device_id" = 'DEV-001'
 
 ---
 
-## 研究 3：SQL Server ORM 選擇
+## 研究 3：MySQL ORM 選擇
 
 **決策**：使用 **Drizzle ORM**
 
 **理由**：
 - TypeScript-first 設計，schema 定義即型別定義，無需額外 type generation 步驟
 - SQL-like query builder，對熟悉 SQL 的開發者學習曲線低
-- 支援 SQL Server（透過 `drizzle-orm/mssql`）
+- 支援 MySQL（透過 `drizzle-orm/mysql2`）
 - 輕量（vs TypeORM 重量級反射機制）
 - 自動生成 migration 文件
+- MySQL 8.0 為開源、無授權費用，在 Ubuntu Linux 上安裝與維護成本低
 
 **考慮過的替代方案**：
 - TypeORM：功能完整但過度工程，decorator 語法對嚴格 TypeScript 設定有相容問題
-- Prisma：schema 語言優雅但 SQL Server 支援在某些版本有 bug，且 Prisma Client 體積大
-- 原生 `mssql` 套件：最輕量但需手動管理參數化查詢，SQL Injection 風險較高
+- Prisma：schema 語言優雅，MySQL 支援完善，但 Prisma Client 體積大
+- 原生 `mysql2` 套件：最輕量但需手動管理參數化查詢，SQL Injection 風險較高
 
 ---
 
@@ -156,7 +157,7 @@ WHERE "device_id" = 'DEV-001'
 
 **理由**：
 - 同一 VPC 內的 EC2 通訊使用私有 IP，延遲 < 1 ms，不計費
-- Security Group 最小權限原則：InfluxDB/SQL Server Port 僅對 EC2 A 的安全群組開放
+- Security Group 最小權限原則：InfluxDB/MySQL Port 僅對 EC2 A 的安全群組開放
 - 比 VPN 或 PrivateLink 簡單，適合 Demo 規模
 
 **環境變數管理**：

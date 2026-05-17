@@ -44,7 +44,7 @@
 
 | 欄位 | 類型 | 說明 |
 |------|------|------|
-| `meter_id` | Tag（String）| 電錶識別碼，對應 SQL Server `meters.meter_code` |
+| `meter_id` | Tag（String）| 電錶識別碼，對應 MySQL `meters.meter_code` |
 | `site_id` | Tag（String）| 場域識別碼 |
 | `customer_id` | Tag（String）| 客戶識別碼 |
 | `meter_type` | Tag（String）| `device_meter` \| `site_meter` |
@@ -66,7 +66,7 @@
 
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| `device_id` | Tag（String）| 必填 | 設備識別碼，對應 SQL Server `devices.device_code` |
+| `device_id` | Tag（String）| 必填 | 設備識別碼，對應 MySQL `devices.device_code` |
 | `site_id` | Tag（String）| 必填 | 場域識別碼 |
 | `customer_id` | Tag（String）| 必填 | 客戶識別碼 |
 | `model` | Tag（String）| 必填 | 設備型號 |
@@ -130,7 +130,7 @@
 
 ---
 
-## 三、SQL Server Express 完整 Schema
+## 三、MySQL 完整 Schema
 
 ### 3.1 實體關係說明
 
@@ -143,6 +143,8 @@
 - 一位 **技師（technician）** 可被指派多筆告警與工單
 - 一個 **使用者（user）** 可綁定一位技師
 
+> **資料庫**：MySQL 8.0；字元集 `utf8mb4`，排序規則 `utf8mb4_unicode_ci`
+
 ### 3.2 完整 DDL
 
 ```sql
@@ -150,132 +152,132 @@
 -- 客戶主檔
 -- ============================================================
 CREATE TABLE clients (
-  client_id     INT IDENTITY(1,1) PRIMARY KEY,
-  client_code   NVARCHAR(20) NOT NULL UNIQUE,  -- 如 CLI-001
-  client_name   NVARCHAR(100) NOT NULL,
-  contact_name  NVARCHAR(50),
-  contact_phone NVARCHAR(20),
-  contact_email NVARCHAR(100),
-  risk_tier     NVARCHAR(10) NOT NULL DEFAULT 'low'
+  client_id     INT AUTO_INCREMENT PRIMARY KEY,
+  client_code   VARCHAR(20) NOT NULL UNIQUE,  -- 如 CLI-001
+  client_name   VARCHAR(100) NOT NULL,
+  contact_name  VARCHAR(50),
+  contact_phone VARCHAR(20),
+  contact_email VARCHAR(100),
+  risk_tier     VARCHAR(10) NOT NULL DEFAULT 'low'
                 CHECK (risk_tier IN ('low', 'medium', 'high')),
-  is_active     BIT NOT NULL DEFAULT 1,
-  created_at    DATETIME2 NOT NULL DEFAULT GETDATE(),
-  updated_at    DATETIME2 NOT NULL DEFAULT GETDATE()
+  is_active     TINYINT(1) NOT NULL DEFAULT 1,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- ============================================================
 -- 場域主檔
 -- ============================================================
 CREATE TABLE sites (
-  site_id         INT IDENTITY(1,1) PRIMARY KEY,
-  site_code       NVARCHAR(20) NOT NULL UNIQUE,
-  site_name       NVARCHAR(100) NOT NULL,
+  site_id         INT AUTO_INCREMENT PRIMARY KEY,
+  site_code       VARCHAR(20) NOT NULL UNIQUE,
+  site_name       VARCHAR(100) NOT NULL,
   client_id       INT NOT NULL REFERENCES clients(client_id),
-  address         NVARCHAR(200),
-  city            NVARCHAR(50),
-  influx_site_tag NVARCHAR(50),  -- 對應 InfluxDB site_id tag
-  is_active       BIT NOT NULL DEFAULT 1,
-  created_at      DATETIME2 NOT NULL DEFAULT GETDATE()
+  address         VARCHAR(200),
+  city            VARCHAR(50),
+  influx_site_tag VARCHAR(50),  -- 對應 InfluxDB site_id tag
+  is_active       TINYINT(1) NOT NULL DEFAULT 1,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================
 -- 維運人員（須在 devices 前建立，因 alerts 引用）
 -- ============================================================
 CREATE TABLE technicians (
-  technician_id INT IDENTITY(1,1) PRIMARY KEY,
-  tech_code     NVARCHAR(20) NOT NULL UNIQUE,
-  full_name     NVARCHAR(50) NOT NULL,
-  email         NVARCHAR(100),
-  phone         NVARCHAR(20),
-  status        NVARCHAR(20) NOT NULL DEFAULT 'active'
+  technician_id INT AUTO_INCREMENT PRIMARY KEY,
+  tech_code     VARCHAR(20) NOT NULL UNIQUE,
+  full_name     VARCHAR(50) NOT NULL,
+  email         VARCHAR(100),
+  phone         VARCHAR(20),
+  status        VARCHAR(20) NOT NULL DEFAULT 'active'
                 CHECK (status IN ('active', 'inactive', 'on_leave')),
-  created_at    DATETIME2 NOT NULL DEFAULT GETDATE()
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================
 -- 設備主檔（80 台）
 -- ============================================================
 CREATE TABLE devices (
-  device_id            INT IDENTITY(1,1) PRIMARY KEY,
-  device_code          NVARCHAR(20) NOT NULL UNIQUE,  -- 如 DEV-001
-  device_name          NVARCHAR(100),
-  model                NVARCHAR(50),
+  device_id            INT AUTO_INCREMENT PRIMARY KEY,
+  device_code          VARCHAR(20) NOT NULL UNIQUE,  -- 如 DEV-001
+  device_name          VARCHAR(100),
+  model                VARCHAR(50),
   install_date         DATE,
   client_id            INT NOT NULL REFERENCES clients(client_id),
   site_id              INT NOT NULL REFERENCES sites(site_id),
-  location_desc        NVARCHAR(100),
-  current_status       NVARCHAR(20) NOT NULL DEFAULT 'normal'
+  location_desc        VARCHAR(100),
+  current_status       VARCHAR(20) NOT NULL DEFAULT 'normal'
                        CHECK (current_status IN ('normal', 'alert', 'offline', 'maintenance')),
-  data_source_type     NVARCHAR(10) NOT NULL DEFAULT 'mock'
+  data_source_type     VARCHAR(10) NOT NULL DEFAULT 'mock'
                        CHECK (data_source_type IN ('real', 'mock')),
-  influx_device_tag    NVARCHAR(50),     -- 對應 InfluxDB device_id tag（real 設備必填）
-  mock_data_file       NVARCHAR(200),    -- mock 設備 JSON 相對路徑（mock 設備必填）
+  influx_device_tag    VARCHAR(50),     -- 對應 InfluxDB device_id tag（real 設備必填）
+  mock_data_file       VARCHAR(200),    -- mock 設備 JSON 相對路徑（mock 設備必填）
   risk_score           DECIMAL(5,2) NOT NULL DEFAULT 0,
-  risk_score_updated_at DATETIME2,
-  last_heartbeat_at    DATETIME2,
-  is_active            BIT NOT NULL DEFAULT 1,
-  supports_cop         BIT NOT NULL DEFAULT 1,
-  supports_pressure    BIT NOT NULL DEFAULT 1,
-  created_at           DATETIME2 NOT NULL DEFAULT GETDATE(),
-  updated_at           DATETIME2 NOT NULL DEFAULT GETDATE()
+  risk_score_updated_at DATETIME,
+  last_heartbeat_at    DATETIME,
+  is_active            TINYINT(1) NOT NULL DEFAULT 1,
+  supports_cop         TINYINT(1) NOT NULL DEFAULT 1,
+  supports_pressure    TINYINT(1) NOT NULL DEFAULT 1,
+  created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-CREATE INDEX IX_devices_status ON devices(current_status) WHERE is_active = 1;
-CREATE INDEX IX_devices_risk_score ON devices(risk_score DESC) WHERE is_active = 1;
+CREATE INDEX IX_devices_status ON devices(current_status);
+CREATE INDEX IX_devices_risk_score ON devices(risk_score DESC);
 
 -- ============================================================
 -- 電錶主檔
 -- ============================================================
 CREATE TABLE meters (
-  meter_id         INT IDENTITY(1,1) PRIMARY KEY,
-  meter_code       NVARCHAR(20) NOT NULL UNIQUE,
-  meter_name       NVARCHAR(100),
-  meter_type       NVARCHAR(20) NOT NULL
+  meter_id         INT AUTO_INCREMENT PRIMARY KEY,
+  meter_code       VARCHAR(20) NOT NULL UNIQUE,
+  meter_name       VARCHAR(100),
+  meter_type       VARCHAR(20) NOT NULL
                    CHECK (meter_type IN ('device_meter', 'site_meter')),
   site_id          INT REFERENCES sites(site_id),
-  influx_meter_tag NVARCHAR(50),  -- 對應 InfluxDB meter_id tag
-  data_source_type NVARCHAR(10) NOT NULL DEFAULT 'real'
+  influx_meter_tag VARCHAR(50),  -- 對應 InfluxDB meter_id tag
+  data_source_type VARCHAR(10) NOT NULL DEFAULT 'real'
                    CHECK (data_source_type IN ('real', 'mock')),
-  is_active        BIT NOT NULL DEFAULT 1,
-  created_at       DATETIME2 NOT NULL DEFAULT GETDATE()
+  is_active        TINYINT(1) NOT NULL DEFAULT 1,
+  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================
 -- 設備電錶 Mapping
 -- ============================================================
 CREATE TABLE device_meter_mappings (
-  mapping_id  INT IDENTITY(1,1) PRIMARY KEY,
+  mapping_id  INT AUTO_INCREMENT PRIMARY KEY,
   device_id   INT NOT NULL REFERENCES devices(device_id),
   meter_id    INT NOT NULL REFERENCES meters(meter_id),
-  is_primary  BIT NOT NULL DEFAULT 1,
+  is_primary  TINYINT(1) NOT NULL DEFAULT 1,
   share_ratio DECIMAL(5,4) NOT NULL DEFAULT 1.0
               CHECK (share_ratio > 0 AND share_ratio <= 1),
   valid_from  DATE,
   valid_to    DATE,  -- NULL 表示目前有效
-  created_at  DATETIME2 NOT NULL DEFAULT GETDATE(),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT UQ_device_meter_valid UNIQUE (device_id, meter_id, valid_from)
 );
-CREATE INDEX IX_dmm_device ON device_meter_mappings(device_id) WHERE valid_to IS NULL;
+CREATE INDEX IX_dmm_device ON device_meter_mappings(device_id);
 
 -- ============================================================
 -- 告警資料
 -- ============================================================
 CREATE TABLE alerts (
-  alert_id        INT IDENTITY(1,1) PRIMARY KEY,
+  alert_id        INT AUTO_INCREMENT PRIMARY KEY,
   device_id       INT NOT NULL REFERENCES devices(device_id),
-  alert_type      NVARCHAR(50) NOT NULL,
-  severity        NVARCHAR(10) NOT NULL
+  alert_type      VARCHAR(50) NOT NULL,
+  severity        VARCHAR(10) NOT NULL
                   CHECK (severity IN ('high', 'medium', 'low')),
-  occurred_at     DATETIME2 NOT NULL,
-  status          NVARCHAR(20) NOT NULL DEFAULT 'open'
+  occurred_at     DATETIME NOT NULL,
+  status          VARCHAR(20) NOT NULL DEFAULT 'open'
                   CHECK (status IN ('open', 'in_progress', 'resolved')),
   assigned_to     INT REFERENCES technicians(technician_id),
-  assigned_at     DATETIME2,
-  resolved_at     DATETIME2,
-  description     NVARCHAR(500),
-  resolution_note NVARCHAR(500),
-  source          NVARCHAR(20) NOT NULL DEFAULT 'manual'
+  assigned_at     DATETIME,
+  resolved_at     DATETIME,
+  description     VARCHAR(500),
+  resolution_note VARCHAR(500),
+  source          VARCHAR(20) NOT NULL DEFAULT 'manual'
                   CHECK (source IN ('manual', 'auto')),  -- 預留 auto 供 MVP
-  created_at      DATETIME2 NOT NULL DEFAULT GETDATE()
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IX_alerts_status ON alerts(status, occurred_at DESC);
 CREATE INDEX IX_alerts_device ON alerts(device_id, status);
@@ -285,21 +287,21 @@ CREATE INDEX IX_alerts_occurred ON alerts(occurred_at DESC);
 -- 維修工單
 -- ============================================================
 CREATE TABLE work_orders (
-  work_order_id   INT IDENTITY(1,1) PRIMARY KEY,
-  wo_code         NVARCHAR(20) NOT NULL UNIQUE,  -- 如 WO-20260517-001
+  work_order_id   INT AUTO_INCREMENT PRIMARY KEY,
+  wo_code         VARCHAR(20) NOT NULL UNIQUE,  -- 如 WO-20260517-001
   device_id       INT NOT NULL REFERENCES devices(device_id),
   alert_id        INT REFERENCES alerts(alert_id),
   assigned_to     INT REFERENCES technicians(technician_id),
-  status          NVARCHAR(20) NOT NULL DEFAULT 'open'
+  status          VARCHAR(20) NOT NULL DEFAULT 'open'
                   CHECK (status IN ('open', 'in_progress', 'completed', 'cancelled')),
-  priority        NVARCHAR(10) NOT NULL DEFAULT 'normal'
+  priority        VARCHAR(10) NOT NULL DEFAULT 'normal'
                   CHECK (priority IN ('urgent', 'high', 'normal', 'low')),
-  issue_desc      NVARCHAR(1000),
-  resolution_desc NVARCHAR(1000),
-  dispatched_at   DATETIME2,
-  completed_at    DATETIME2,
-  created_at      DATETIME2 NOT NULL DEFAULT GETDATE(),
-  updated_at      DATETIME2 NOT NULL DEFAULT GETDATE()
+  issue_desc      TEXT,
+  resolution_desc TEXT,
+  dispatched_at   DATETIME,
+  completed_at    DATETIME,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 CREATE INDEX IX_wo_device_status ON work_orders(device_id, status);
 CREATE INDEX IX_wo_assignee ON work_orders(assigned_to, status);
@@ -308,39 +310,39 @@ CREATE INDEX IX_wo_assignee ON work_orders(assigned_to, status);
 -- 登入帳號
 -- ============================================================
 CREATE TABLE users (
-  user_id        INT IDENTITY(1,1) PRIMARY KEY,
-  username       NVARCHAR(50) NOT NULL UNIQUE,
-  password_hash  NVARCHAR(255) NOT NULL,  -- bcrypt，cost factor ≥ 12
-  display_name   NVARCHAR(100),
-  email          NVARCHAR(100),
-  role           NVARCHAR(20) NOT NULL DEFAULT 'engineer'
+  user_id        INT AUTO_INCREMENT PRIMARY KEY,
+  username       VARCHAR(50) NOT NULL UNIQUE,
+  password_hash  VARCHAR(255) NOT NULL,  -- bcrypt，cost factor ≥ 12
+  display_name   VARCHAR(100),
+  email          VARCHAR(100),
+  role           VARCHAR(20) NOT NULL DEFAULT 'engineer'
                  CHECK (role IN ('engineer', 'manager', 'owner', 'admin')),
   technician_id  INT REFERENCES technicians(technician_id),
-  is_active      BIT NOT NULL DEFAULT 1,
-  last_login_at  DATETIME2,
-  created_at     DATETIME2 NOT NULL DEFAULT GETDATE()
+  is_active      TINYINT(1) NOT NULL DEFAULT 1,
+  last_login_at  DATETIME,
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================
 -- 系統設定
 -- ============================================================
 CREATE TABLE system_settings (
-  setting_key   NVARCHAR(100) PRIMARY KEY,
-  setting_value NVARCHAR(1000),
-  description   NVARCHAR(200),
-  updated_at    DATETIME2 NOT NULL DEFAULT GETDATE()
+  setting_key   VARCHAR(100) PRIMARY KEY,
+  setting_value VARCHAR(1000),
+  description   VARCHAR(200),
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- ============================================================
 -- 風險分數權重設定
 -- ============================================================
 CREATE TABLE risk_score_weights (
-  rule_id     INT IDENTITY(1,1) PRIMARY KEY,
-  rule_name   NVARCHAR(100) NOT NULL UNIQUE,
-  description NVARCHAR(200),
+  rule_id     INT AUTO_INCREMENT PRIMARY KEY,
+  rule_name   VARCHAR(100) NOT NULL UNIQUE,
+  description VARCHAR(200),
   weight      DECIMAL(5,2) NOT NULL CHECK (weight >= 0 AND weight <= 100),
-  enabled     BIT NOT NULL DEFAULT 1,
-  updated_at  DATETIME2 NOT NULL DEFAULT GETDATE()
+  enabled     TINYINT(1) NOT NULL DEFAULT 1,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 ```
 
