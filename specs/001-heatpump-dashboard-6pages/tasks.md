@@ -52,6 +52,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T016 [P] 定義後端共用 TypeScript DTO 型別（DeviceListItem、DeviceDetail、AlertItem、WorkOrder、RiskDevice、MonthlyReport、ExecutiveSummary、CapacityResult 等）→ `backend/src/types/device.ts`、`backend/src/types/alert.ts`、`backend/src/types/common.ts`
 - [ ] T017 [P] 實作系統健康檢查端點（`GET /api/system/health` 回傳 influxdb + mysql 連線狀態；`GET /api/system/last-updated`）→ `backend/src/routes/system.ts`
 - [ ] T065 建立 node-cron 每日彙總工作（每日 00:05 執行：聚合前一日 `power_meter` 寫入 InfluxDB `energy_daily_summary`；聚合 `heatpump_status` 寫入 `heatpump_daily_summary`；依賴 T010 InfluxDB queries + T007 MySQL schema；同時為 US3 單機履歷（T055/T056）與 US5 月報（T066）提供彙整資料來源；開發環境提供 `triggerDailySummary()` 手動觸發方法）→ `backend/src/jobs/dailySummaryJob.ts`
+- [ ] T106 [P] 單元測試 dailySummaryJob（Arrange：以 stub 注入 InfluxDB client 與 queries；Act：呼叫 `triggerDailySummary()`；Assert：驗 energy_daily_summary 寫入呼叫恰好一次、heatpump_daily_summary 寫入呼叫恰好一次、InfluxDB 連線失敗時錯誤被記錄且不拋出未攔截例外；Constitution II TDD：測試先於 T065 完整實作；覆蓋率目標 ≥ 80%）→ `backend/tests/unit/jobs/dailySummaryJob.test.ts`
 
 ### 2B：認證 API（Auth Backend）
 
@@ -84,7 +85,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 ### 後端實作（US1）
 
 - [ ] T030 [US1] 實作 deviceService.getDeviceList()（讀取 MySQL + Mock JSON 彙整；依 status/search 篩選；排序：alert > maintenance > offline > normal 再依 riskScore 降序；node-cache TTL 25s）→ `backend/src/services/deviceService.ts`
-- [ ] T031 [US1] 實作 `GET /api/devices` 路由（套用 authGuard；解析 status、search、page、limit query params；search 欄位採 `LIKE '%keyword%'` 前綴模糊比對，不區分大小寫）→ `backend/src/routes/devices.ts`
+- [ ] T031 [US1] 實作 `GET /api/devices` 路由（套用 authGuard；解析 status、search、page、limit query params；search 欄位採 `LIKE 'keyword%'` 前綴模糊比對，不區分大小寫）→ `backend/src/routes/devices.ts`
 
 ### 前端實作（US1）
 
@@ -213,7 +214,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 ### 後端實作（US6）
 
 - [ ] T074 [US6] 實作 executiveService（KPI 計算：totalDevices / totalTechnicians / avgDevicesPerTech；technicianWorkload：每位技師 activeWorkOrders + completedThisMonth + utilizationRate（公式：`activeWorkOrders / MAX_WORK_ORDERS_PER_TECH × 100`）；擴張承載能力：maxSafeAddDevices = totalMaxCapacity × 0.95 - currentDevices（totalMaxCapacity = totalTechnicians × `MAX_DEVICES_PER_TECH`）；兩個設定項分別從 system_settings 讀取）→ `backend/src/services/executiveService.ts`
-- [ ] T075 [US6] 實作 `GET /api/executive/summary` 路由（回傳 kpi + technicianWorkload + topRiskClients；套用 authGuard；TTL 25s）→ `backend/src/routes/executive.ts`
+- [ ] T075 [US6] 實作 `GET /api/executive/summary` 路由（回傳 kpi + technicianWorkload + topRiskClients；套用 authGuard；TTL 300s）→ `backend/src/routes/executive.ts`
 - [ ] T076 [P] [US6] 實作 `GET /api/executive/capacity` 路由（接受 addDevices query param；計算 projectedUtilization + maxSafeAddDevices + capacityCurve 0/5/10/15/20 節點）→ `backend/src/routes/executive.ts`（附加）
 - [ ] T077 [P] [US6] 實作 `GET /api/risk/top-clients` 路由（Top 5 高風險客戶：clientName、deviceCount、alertCount、avgRiskScore、riskTier、suggestedAction）→ `backend/src/routes/risk.ts`（附加）
 
@@ -304,7 +305,7 @@ Phase 9（Polish）
 | Phase | 任務數 | 說明 |
 |-------|--------|------|
 | Phase 1: Setup | 6（T001–T006）| 專案初始化 |
-| Phase 2: Foundational | 24（T007–T029、T065）| 後端 + 前端基礎建設 + Auth + 每日彙總工作 |
+| Phase 2: Foundational | 25（T007–T029、T065、T106）| 後端 + 前端基礎建設 + Auth + 每日彙總工作 |
 | Phase 3: US1 設備總覽 | 9（T030–T036、T090、T100）| P1 🎯 MVP |
 | Phase 4: US4 告警中心 | 13（T037–T047、T091、T101）| P1 |
 | Phase 5: US2 風險排序 | 8（T048–T053、T092、T102）| P2 |
@@ -312,8 +313,8 @@ Phase 9（Polish）
 | Phase 7: US5 月報雛形 | 10（T066–T073、T094、T104）| P3 |
 | Phase 8: US6 老闆決策頁 | 11（T074–T082、T095、T105）| P3 |
 | Phase 9: Polish | 11（T083–T089、T096–T099）| 收尾 |
-| **合計** | **105** | |
+| **合計** | **106** | |
 
-**平行機會**：105 個任務中，標記 [P] 的任務共 **53 個**，可大幅縮短實際開發時程。
+**平行機會**：106 個任務中，標記 [P] 的任務共 **54 個**，可大幅縮短實際開發時程。
 
-**建議 MVP 範圍**：Phase 1 + Phase 2 + Phase 3（T001–T036、T065、T090、T100），共 39 個任務，交付設備總覽核心功能。
+**建議 MVP 範圍**：Phase 1 + Phase 2 + Phase 3（T001–T036、T065、T106、T090、T100），共 40 個任務，交付設備總覽核心功能。

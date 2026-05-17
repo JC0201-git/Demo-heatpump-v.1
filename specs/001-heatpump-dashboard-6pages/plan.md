@@ -249,8 +249,7 @@ backend/src/
 ├── jobs/
 │   └── dailySummaryJob.ts  # node-cron：每日 00:05 彙整 energy/heatpump daily summary
 └── middleware/
-    ├── auth.ts           # JWT 驗證 hook
-    └── rateLimit.ts      # 登入 API 限流
+    └── auth.ts           # JWT 驗證 hook
 ```
 
 ### API 回應統一格式
