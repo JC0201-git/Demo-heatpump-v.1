@@ -141,7 +141,7 @@
 - **FR-001**: 系統必須顯示最多 80 台設備的狀態列表，每台設備一列
 - **FR-002**: 每列設備必須包含：設備編號、客戶名稱、地點、狀態標籤、最後更新時間
 - **FR-003**: 系統必須支援依設備狀態（正常、異常、離線、待維修）篩選列表
-- **FR-004**: 系統必須支援依客戶名稱或設備編號搜尋設備
+- **FR-004**: 系統必須支援依客戶名稱或設備編號搜尋設備（採前綴模糊搜尋，SQL `LIKE '%keyword%'`，不區分大小寫）
 - **FR-005**: 點擊任一設備列，系統必須導向該設備的單機履歷頁
 
 **Page 2 — 風險排序**
@@ -179,7 +179,7 @@
 **Page 6 — 老闆決策頁**
 
 - **FR-026**: 決策頁頂部必須顯示三個核心 KPI：總管理設備數、維運人員數、每人負責設備數
-- **FR-027**: 維運負載區塊必須顯示每位維運人員的工單數量與產能利用率（公式：`utilizationRate = activeWorkOrders / maxCapacityPerTech × 100`，`maxCapacityPerTech` 來源為 `system_settings` 資料表的 `MAX_DEVICES_PER_TECH` 設定項）
+- **FR-027**: 維運負載區塊必須顯示每位維運人員的工單數量與產能利用率（公式：`utilizationRate = activeWorkOrders / maxWorkOrdersPerTech × 100`，`maxWorkOrdersPerTech` 來源為 `system_settings` 資料表的 `MAX_WORK_ORDERS_PER_TECH` 設定項；此設定與 `MAX_DEVICES_PER_TECH`（用於 FR-029 擴張承載能力計算）為兩個獨立設定項，語意不同，不可混用）
 - **FR-028**: 風險客戶區塊必須顯示前 5 名高風險客戶，含客戶名稱、設備數、本月異常次數、風險評級
 - **FR-029**: 擴張承載能力區塊必須顯示目前產能利用率、新增設備後的預估負載，以及建議可承接的最大新增設備數
 
@@ -231,7 +231,7 @@
 - COP（性能係數）數值由設備感測器直接上報，本系統不負責計算；若設備不支援 COP 回報，該欄位顯示「不適用」
 - PDF 匂出功能使用前端 PDF 函式庫（`jsPDF + html2canvas`）實作；無需後端 PDF 服務，也不依賴瀏覽器列印設定
 - 本規格不包含行動裝置（手機）版面設計，以桌面瀏覽器（1280px 以上解析度）為主要目標
-- 風險分數計算邏輯（0-100）已由業務方確認，公式為：`riskScore = alert_severity_score × 30 + recent_anomaly_7d_score × 20 + offline_hours_score × 20 + open_work_orders_score × 15 + energy_anomaly_score × 10 + overdue_maintenance_score × 5`，共 6 個維度，各維度分數均正規化至 0–100 後套用加權（加總 = 100）；完整權重設定儲存於 `risk_score_weights` 資料表，可由系統設定頁調整（詳見 tasks.md T048、T085）
+- 風險分數計算邏輯（0-100）已由業務方確認，公式為：`riskScore = alert_severity_score × 30 + recent_anomaly_7d_score × 20 + offline_hours_score × 20 + open_work_orders_score × 15 + energy_anomaly_score × 10 + overdue_maintenance_score × 5`，共 6 個維度，各維度分數均正規化至 0–100 後套用加權（加總 = 100）；完整權重設定儲存於 `risk_score_weights` 資料表，可透過 `GET/PUT /api/risk/rules` API 調整（v1 不提供前端設定頁 UI，後續版本再行規劃；詳見 tasks.md T048、T085）
 - 資料刷新採定時輪詢機制，每 30 秒向 API 重新取得最新設備狀態與告警資料；靜態 Mock JSON 頁面不需輪詢
 - 前端技術棆為 React + TypeScript；伺服器執行環境為 Ubuntu Linux
 
