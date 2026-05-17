@@ -228,6 +228,7 @@ backend/src/
 │   ├── devices.ts       # GET /api/devices, /:deviceId, /power, /operation, /alerts, /work-orders
 │   ├── risk.ts          # GET /api/risk/top-devices, /top-clients, /rules; PUT /api/risk/rules
 │   ├── alerts.ts        # GET /api/alerts; PUT /:alertId/assign, /:alertId/resolve
+│   ├── technicians.ts   # GET /api/technicians（active 技師清單，供 AssignModal 使用）
 │   ├── reports.ts       # GET /api/reports/monthly
 │   ├── executive.ts     # GET /api/executive/summary, /capacity
 │   └── system.ts        # GET /api/system/last-updated, /health
@@ -245,7 +246,7 @@ backend/src/
 ├── mock/
 │   └── loader.ts        # 啟動時載入 73 個 Mock JSON 至記憶體
 ├── jobs/
-│   └── dailySummary.ts  # node-cron：每日 00:05 彙整 energy/heatpump daily summary
+│   └── dailySummaryJob.ts  # node-cron：每日 00:05 彙整 energy/heatpump daily summary
 └── middleware/
     ├── auth.ts           # JWT 驗證 hook
     └── rateLimit.ts      # 登入 API 限流
@@ -379,6 +380,7 @@ GROUP BY time(1d) fill(null)
 | Alerts | `GET /api/alerts` | 告警列表（支援狀態 / 類型篩選 / 分頁）|
 | Alerts | `PUT /api/alerts/:alertId/assign` | 指派負責人 |
 | Alerts | `PUT /api/alerts/:alertId/resolve` | 更新為已解除 |
+| Technicians | `GET /api/technicians` | 查詢 active 技師清單（供告警指派 AssignModal 使用）|
 | Reports | `GET /api/reports/monthly` | 月報資料（`?month=YYYY-MM`）|
 | Executive | `GET /api/executive/summary` | 老闆決策頁 KPI 與負載資料 |
 | Executive | `GET /api/executive/capacity` | 擴張承載能力分析 |
