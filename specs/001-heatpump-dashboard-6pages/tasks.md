@@ -51,6 +51,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T015 實作 JWT 認證 preHandler hook（驗證 `hp_token` httpOnly cookie；驗失回傳 401 UNAUTHORIZED）→ `backend/src/middleware/auth.ts`
 - [ ] T016 [P] 定義後端共用 TypeScript DTO 型別（DeviceListItem、DeviceDetail、AlertItem、WorkOrder、RiskDevice、MonthlyReport、ExecutiveSummary、CapacityResult 等）→ `backend/src/types/device.ts`、`backend/src/types/alert.ts`、`backend/src/types/common.ts`
 - [ ] T017 [P] 實作系統健康檢查端點（`GET /api/system/health` 回傳 influxdb + mysql 連線狀態；`GET /api/system/last-updated`）→ `backend/src/routes/system.ts`
+- [ ] T065 建立 node-cron 每日彙總工作（每日 00:05 執行：聚合前一日 `power_meter` 寫入 InfluxDB `energy_daily_summary`；聚合 `heatpump_status` 寫入 `heatpump_daily_summary`；依賴 T010 InfluxDB queries + T007 MySQL schema；同時為 US3 單機履歷（T055/T056）與 US5 月報（T066）提供彙整資料來源；開發環境提供 `triggerDailySummary()` 手動觸發方法）→ `backend/src/jobs/dailySummaryJob.ts`
 
 ### 2B：認證 API（Auth Backend）
 
@@ -185,7 +186,6 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 ### 後端實作（US5）
 
-- [ ] T065 [US5] 實作 node-cron 每日彙總工作（每日 00:05 執行：聚合前一日 `power_meter` 寫入 `energy_daily_summary`；聚合 `heatpump_status` 寫入 `heatpump_daily_summary`）→ `backend/src/jobs/dailySummaryJob.ts`
 - [ ] T066 [US5] 實作 reportService.getMonthlyReport()（聚合 MySQL：健康分數分布、異常類型統計、Top 5 異常設備、告警處理率；各計數同時附 ÷ 實際天數每日平均值；正確處理閏年與各月天數差異）→ `backend/src/services/reportService.ts`
 - [ ] T067 [US5] 實作 `GET /api/reports/monthly` 路由（month=YYYY-MM 格式驗證；422 INVALID_MONTH；套用 authGuard；REPORT_CACHE_TTL 300s）→ `backend/src/routes/reports.ts`
 
@@ -233,7 +233,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 **目標**：效能優化、過期資料提示、風險規則管理端點、全端整合驗證
 
-- [ ] T083 實作後端 API 回應快取中介軟體（設備列表 25s TTL / 月報與歷史資料 300s TTL；設定 `Cache-Control` 標頭）→ `backend/src/middleware/cache.ts`
+- [ ] T083 實作後端 API 回應快取 HTTP 標頭中介軟體（設定 `Cache-Control` 標頭供瀏覽器 / CDN 使用：設備列表 25s、月報與歷史資料 300s；**注意**：此中介軟體僅負責 HTTP 標頭層快取；各 service 層已獨立使用 node-cache 作為伺服器端記憶體快取（T030 25s / T037 10s / T049 5min / T067 300s），兩層職責不同、互不衝突）→ `backend/src/middleware/cache.ts`
 - [ ] T084 [P] 實作前端過期資料偵測工具函式（比較回應時間戳與現在時間；超過 TTL 顯示「資料可能過期」標籤；快取值保留至 API 恢復）→ `frontend/src/utils/staleDataHelper.ts`
 - [ ] T085 [P] 實作 `GET /api/risk/rules` 與 `PUT /api/risk/rules` 端點（PUT 驗證啟用規則 weight 加總 = 100；422 INVALID_WEIGHT_SUM：「啟用的權重加總必須等於 100，目前為 N」）→ `backend/src/routes/risk.ts`（附加）
 - [ ] T086 [P] 確認深色主題一致性（全部 6 頁使用 Tailwind 設計 Token；ECharts 圖表設定深色背景 + 高對比色；WCAG 2.1 AA 對比度驗證）
@@ -241,6 +241,8 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T088 [P] 對全專案執行 ESLint + Prettier 最終校正（frontend/ + backend/；確認 Constitution I 通過）
 - [ ] T096 [P] 建立 CI 效能基準測試腳本（`GET /api/devices` p95 ≤500ms + `GET /api/alerts` p95 ≤500ms；採用 Autocannon 腳本於 local Docker 環境執行；整合至 CI pipeline，PR 觸發條件：修改 routes/devices.ts 或 routes/alerts.ts；確認 Constitution IV 合規）→ `backend/tests/performance/benchmark.ts`、`.github/workflows/perf.yml`
 - [ ] T097 [P] 驗收告警中心 SC-004 效能（80 筆告警下頁面載入 ≤3 秒）：seed 80 筆 mock 告警，Supertest 量測 `GET /api/alerts?limit=50` p95 ≤500ms；確認 node-cache TTL 10s 快取命中；人工驗收前端 AlertCenter 首次載入達標，記錄截圖至 `docs/perf-sc004.png` → `backend/tests/performance/alertCenter.perf.ts`
+- [ ] T098 [P] 驗收月報 PDF SC-003 效能（SC-003：PDF 產生 ≤30 秒）：於前端開發環境以計時腳本截取完整 `#monthly-report` DOM 並量測 `jsPDF.save()` 完成時間；若平均超過 30s，分析 html2canvas 渲染瓶頸（imageQuality 調整、圖層拆分）；人工驗收後記錄截圖至 `docs/perf-sc003.png` → `frontend/src/utils/pdfPerfTest.ts`
+- [ ] T099 [P] 驗證前後端測試覆蓋率達標（Constitution II）：前端執行 `vitest run --coverage` 驗證各模組覆蓋率 ≥ 80%；後端執行 `jest --coverage --coverageThreshold` 驗證相同門檻；CI pipeline（`.github/workflows/ci.yml`）整合覆蓋率閾值檢查，低於門檻則阻斷 PR 合併；輸出 lcov 格式報告 → `frontend/vite.config.ts`（coverage 設定）、`backend/jest.config.ts`（coverageThreshold）、`.github/workflows/ci.yml`
 - [ ] T089 驗證 Docker Compose 全端整合啟動（nginx 代理、前後端連線、健康檢查端點回應 healthy）→ `docker/docker-compose.yml`
 
 ---
@@ -300,16 +302,16 @@ Phase 9（Polish）
 | Phase | 任務數 | 說明 |
 |-------|--------|------|
 | Phase 1: Setup | 6（T001–T006）| 專案初始化 |
-| Phase 2: Foundational | 23（T007–T029）| 後端 + 前端基礎建設 + Auth |
+| Phase 2: Foundational | 24（T007–T029、T065）| 後端 + 前端基礎建設 + Auth + 每日彙總工作 |
 | Phase 3: US1 設備總覽 | 8（T030–T036、T090）| P1 🎯 MVP |
 | Phase 4: US4 告警中心 | 12（T037–T047、T091）| P1 |
 | Phase 5: US2 風險排序 | 7（T048–T053、T092）| P2 |
 | Phase 6: US3 單機履歷 | 12（T054–T064、T093）| P2 |
-| Phase 7: US5 月報雛形 | 10（T065–T073、T094）| P3 |
+| Phase 7: US5 月報雛形 | 9（T066–T073、T094）| P3 |
 | Phase 8: US6 老闆決策頁 | 10（T074–T082、T095）| P3 |
-| Phase 9: Polish | 9（T083–T089、T096、T097）| 收尾 |
-| **合計** | **97** | |
+| Phase 9: Polish | 11（T083–T089、T096–T099）| 收尾 |
+| **合計** | **99** | |
 
-**平行機會**：97 個任務中，標記 [P] 的任務共 **45 個**，可大幅縮短實際開發時程。
+**平行機會**：99 個任務中，標記 [P] 的任務共 **47 個**，可大幅縮短實際開發時程。
 
-**建議 MVP 範圍**：Phase 1 + Phase 2 + Phase 3（T001–T036、T090），共 37 個任務，交付設備總覽核心功能。
+**建議 MVP 範圍**：Phase 1 + Phase 2 + Phase 3（T001–T036、T065、T090），共 38 個任務，交付設備總覽核心功能。

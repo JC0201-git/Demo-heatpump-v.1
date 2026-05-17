@@ -106,6 +106,7 @@ Demo-heatpump-v.1/
 │   ├── nginx/
 │   │   └── default.conf
 │   └── env.example
+├── docs/                     # 效能驗收截圖（perf-sc003.png、perf-sc004.png）
 └── specs/
 ```
 
