@@ -45,6 +45,7 @@ Final Phase (Polish)
 - [ ] T005 [P] 設定前端 `frontend/tsconfig.json` 繼承根目錄 base，設定 Vite path alias；設定後端 `backend/tsconfig.json` 繼承根目錄 base，加入 `paths` 與 `outDir: dist`
 - [ ] T006 [P] 設定前端測試框架：Vitest + @vitest/coverage-v8（coverage ≥ 80%）於 `frontend/vitest.config.ts`，建立 `frontend/tests/` 目錄
 - [ ] T007 [P] 設定後端測試框架：Node.js built-in test runner + supertest，設定 `backend/package.json` test script，建立 `backend/tests/unit/`、`backend/tests/integration/` 目錄
+- [ ] T007a [P] 建立 CI 流程設定（GitHub Actions）：在 `.github/workflows/ci.yml` 設定 PR 觸發 workflow，依序執行 lint（eslint）、前端測試（vitest --coverage，coverage ≥ 80% 為 fail threshold）、後端測試（node --test + supertest）、效能基準（autocannon `GET /api/alerts?limit=80` p95 ≤ 500 ms 斷言）；任何步驟失敗均 block merge
 - [ ] T008 建立 Docker Compose 設定（frontend :3000、backend-api :3001、nginx :80）於 `docker/docker-compose.yml`
 - [ ] T009 [P] 建立 Nginx 反向代理設定：`/api/*` 代理至 backend-api:3001，`/*` 服務 React SPA 於 `docker/nginx.conf`
 - [ ] T010 [P] 建立環境變數範本（含 JWT_SECRET、MYSQL_*、INFLUXDB_*、DEVICE_CACHE_TTL=25、REPORT_CACHE_TTL=300、MAX_DEVICES_PER_TECH=20）於 `docker/env.example`
@@ -105,11 +106,13 @@ Final Phase (Polish)
 
 ### 後端實作
 
+> **Constitution II 規範**：整合測試任務 T043 必須先撰寫並確認失敗後，再開始對應實作任務。
+
+- [ ] T043 [P] [US1] ⚠️ 先行撰寫（Red-Green-Refactor）：撰寫 devices 端點整合測試（驗證回傳 80 筆、status 篩選、search 搜尋）於 `backend/tests/integration/devices.test.ts`
 - [ ] T039 [US1] 實作 `DeviceService.getDeviceList()`（讀取 MySQL + Mock JSON 彙整、依 status/search 篩選、依 alert→maintenance→offline→normal + riskScore 排序、node-cache TTL 25s）於 `backend/src/services/deviceService.ts`
 - [ ] T040 [US1] 實作 GET /api/devices 路由 handler（套用 authGuard、解析 query params：status、search、page、limit）於 `backend/src/routes/devices.ts`
 - [ ] T041 [US1] 實作 `DeviceService.getDeviceById()`（MySQL 查詢 + mock fallback、回傳 DeviceDetailDTO）於 `backend/src/services/deviceService.ts`
 - [ ] T042 [US1] 實作 GET /api/devices/:deviceId 路由 handler（404 DEVICE_NOT_FOUND 錯誤處理）於 `backend/src/routes/devices.ts`
-- [ ] T043 [P] [US1] 撰寫 devices 端點整合測試（驗證回傳 80 筆、status 篩選、search 搜尋）於 `backend/tests/integration/devices.test.ts`
 
 ### 前端實作
 
@@ -130,13 +133,17 @@ Final Phase (Polish)
 
 ### 後端實作
 
+> **Constitution II 規範**：整合測試任務 T054、T054a 必須先撰寫並確認失敗後，再開始對應實作任務。
+
+- [ ] T054 [P] [US4] ⚠️ 先行撰寫（Red-Green-Refactor）：撰寫 alerts 端點整合測試（驗證 assign 流程、resolve 流程、409 重複解除、GET /api/technicians 回傳 active 人員清單）於 `backend/tests/integration/alerts.test.ts`
+- [ ] T054a [P] [US4] ⚠️ 先行撰寫（SC-004 效能基準）：撰寫告警中心效能基準測試（使用 `autocannon`：情境為 80 台設備同時各有 1 筆 pending alert、並發 10 個請求、持續 10s；斷言 `GET /api/alerts` p95 回應時間 ≤ 500 ms）於 `backend/tests/perf/alerts-load.test.ts`；此測試須整合至 CI workflow（T007a）
 - [ ] T048 [US4] 實作 `AlertService.getAlerts()`（依 status/alert_type/severity 篩選、排序：未指派置頂→severity→occurredAt DESC、node-cache TTL 10s）於 `backend/src/services/alertService.ts`
 - [ ] T049 [US4] 實作 GET /api/alerts 路由 handler（套用 authGuard、支援 status/alert_type/severity/page/limit query params）於 `backend/src/routes/alerts.ts`
 - [ ] T050 [US4] 實作 `AlertService.assignAlert(alertId, technicianId)`（驗證技師存在且 active、更新 status→in_progress、記錄 assigned_at）於 `backend/src/services/alertService.ts`
 - [ ] T051 [US4] 實作 PUT /api/alerts/:alertId/assign 路由 handler（404 ALERT_NOT_FOUND、422 TECHNICIAN_NOT_FOUND 錯誤處理）於 `backend/src/routes/alerts.ts`
 - [ ] T052 [US4] 實作 `AlertService.resolveAlert(alertId, resolutionNote)`（驗證告警非 resolved 狀態、更新 status→resolved、記錄 resolved_at）於 `backend/src/services/alertService.ts`
 - [ ] T053 [US4] 實作 PUT /api/alerts/:alertId/resolve 路由 handler（409 ALERT_ALREADY_RESOLVED 錯誤處理）於 `backend/src/routes/alerts.ts`
-- [ ] T054 [P] [US4] 撰寫 alerts 端點整合測試（驗證 assign 流程、resolve 流程、409 重複解除）於 `backend/tests/integration/alerts.test.ts`
+- [ ] T053a [P] [US4] 實作 GET /api/technicians 路由 handler（套用 authGuard；查詢 technicians 表 status=active 的人員清單，回傳 `{ id, name, employeeCode }[]`；供前端指派告警 modal 的下拉選單使用）於 `backend/src/routes/technicians.ts`
 
 ### 前端實作
 
@@ -157,11 +164,13 @@ Final Phase (Polish)
 
 ### 後端實作
 
+> **Constitution II 規範**：整合測試任務 T063 必須先撰寫並確認失敗後，再開始對應實作任務。
+
+- [ ] T063 [P] [US2] ⚠️ 先行撰寫（Red-Green-Refactor）：撰寫 risk 端點整合測試（驗證 Top 10 排序、suggestedAction 分類邏輯）於 `backend/tests/integration/risk.test.ts`
 - [ ] T059 [US2] 實作 `RiskService.calculateRiskScore(device)`（依 risk_score_weights 表中規則：alert_severity × 30 + consecutive_alerts × 25 + pending_work_orders × 20 + offline_hours × 15 + energy_anomaly × 10 等）於 `backend/src/services/riskService.ts`
 - [ ] T060 [US2] 實作 `RiskService.getTopDevices()`（計算全部設備分數、取前 10、比對前次排名計算 rankChange/rankDelta、依 riskScore 判斷 suggestedAction：≥70=緊急/≥40=本週/<40=本月）於 `backend/src/services/riskService.ts`
 - [ ] T061 [US2] 實作 GET /api/risk/top-devices 路由 handler（套用 authGuard）於 `backend/src/routes/risk.ts`
 - [ ] T062 [P] [US2] 實作 GET /api/risk/rules 與 PUT /api/risk/rules 路由 handler（weight sum 驗證：enabled 規則加總必須 = 100、422 INVALID_WEIGHT_SUM）於 `backend/src/routes/risk.ts`
-- [ ] T063 [P] [US2] 撰寫 risk 端點整合測試（驗證 Top 10 排序、suggestedAction 分類邏輯）於 `backend/tests/integration/risk.test.ts`
 
 ### 前端實作
 
@@ -181,13 +190,15 @@ Final Phase (Polish)
 
 ### 後端實作
 
+> **Constitution II 規範**：整合測試任務 T073 必須先撰寫並確認失敗後，再開始對應實作任務。
+
+- [ ] T073 [P] [US3] ⚠️ 先行撰寫（Red-Green-Refactor）：撰寫 device detail 端點整合測試（驗證 power/operation 回傳 30 日資料、alerts/work-orders 分頁正確）於 `backend/tests/integration/deviceDetail.test.ts`
 - [ ] T067 [US3] 實作 `DeviceService.getDevicePowerHistory(deviceId, from, to)`（從 InfluxDB `energy_daily_summary` 查詢 30 日每日彙總 + 從 `power_meter` 查即時資料；mock 設備從 JSON 讀取；安裝未滿 30 天只回傳有資料的日期）於 `backend/src/services/deviceService.ts`
 - [ ] T068 [US3] 實作 GET /api/devices/:deviceId/power 路由 handler（from/to query params 解析，預設 30 天前至今）於 `backend/src/routes/devices.ts`
 - [ ] T069 [US3] 實作 `DeviceService.getDeviceOperationHistory(deviceId, from, to)`（從 InfluxDB `heatpump_daily_summary` 查詢 30 日彙總 + 即時狀態；支援 supportsCoP/supportsPressure null 處理）於 `backend/src/services/deviceService.ts`
 - [ ] T070 [US3] 實作 GET /api/devices/:deviceId/operation 路由 handler 於 `backend/src/routes/devices.ts`
 - [ ] T071 [P] [US3] 實作 GET /api/devices/:deviceId/alerts 路由 handler（從 MySQL alerts 表分頁查詢，依 occurred_at DESC）於 `backend/src/routes/devices.ts`
 - [ ] T072 [P] [US3] 實作 GET /api/devices/:deviceId/work-orders 路由 handler（從 MySQL work_orders 表分頁查詢，依 dispatched_at DESC）於 `backend/src/routes/devices.ts`
-- [ ] T073 [P] [US3] 撰寫 device detail 端點整合測試（驗證 power/operation 回傳 30 日資料、alerts/work-orders 分頁正確）於 `backend/tests/integration/deviceDetail.test.ts`
 
 ### 前端實作
 
@@ -210,10 +221,12 @@ Final Phase (Polish)
 
 ### 後端實作
 
-- [ ] T080 [US5] 實作 `ReportService.getMonthlyReport(month)`（從 MySQL 計算 alertStats：總數/已解除率/平均解除時間/逾時數；從 devices 計算 deviceHealthSummary：平均 riskScore 轉健康分數、分布計算；從 alerts 統計 anomalyStats：按類型分類、Top 5 設備）於 `backend/src/services/reportService.ts`
+> **Constitution II 規範**：整合測試任務 T083 必須先撰寫並確認失敗後，再開始對應實作任務。
+
+- [ ] T083 [P] [US5] ⚠️ 先行撰寫（Red-Green-Refactor）：撰寫 monthly report 端點整合測試（驗證 alertStats 計算邏輯、anomalyStats byType 正確）於 `backend/tests/integration/reports.test.ts`
+- [ ] T080 [US5] 實作 `ReportService.getMonthlyReport(month)`（從 MySQL 計算 alertStats：總數/已解除率/平均解除時間/逾時數；從 devices 計算 deviceHealthSummary：平均 riskScore 轉健康分數（healthScore = 100 - riskScore）、分布計算；從 alerts 統計 anomalyStats：按類型分類、Top 5 設備）於 `backend/src/services/reportService.ts`
 - [ ] T081 [US5] 實作 GET /api/reports/monthly 路由 handler（month=YYYY-MM 參數驗證、422 INVALID_MONTH；套用 authGuard；REPORT_CACHE_TTL 300s 快取）於 `backend/src/routes/reports.ts`
 - [ ] T082 [P] [US5] 建立 node-cron 每日彙總 Job（每日 00:05 執行：讀取 InfluxDB `heatpump_status`/`power_meter`，彙整後寫入 `energy_daily_summary` 與 `heatpump_daily_summary` measurements）於 `backend/src/jobs/dailySummaryJob.ts`
-- [ ] T083 [P] [US5] 撰寫 monthly report 端點整合測試（驗證 alertStats 計算邏輯、anomalyStats byType 正確）於 `backend/tests/integration/reports.test.ts`
 
 ### 前端實作
 
@@ -236,11 +249,13 @@ Final Phase (Polish)
 
 ### 後端實作
 
+> **Constitution II 規範**：整合測試任務 T094 必須先撰寫並確認失敗後，再開始對應實作任務。
+
+- [ ] T094 [P] [US6] ⚠️ 先行撰寫（Red-Green-Refactor）：撰寫 executive 端點整合測試（驗證 KPI 計算、maxSafeAddDevices 邏輯）於 `backend/tests/integration/executive.test.ts`
 - [ ] T090 [US6] 實作 `ExecutiveService.getSummary()`（KPI：totalDevices=80、totalTechnicians from DB、avgDevicesPerTech；technicianWorkload：每位技師的 activeWorkOrders + completedThisMonth + utilizationRate；topRiskClients：Top 5 by avgRiskScore）於 `backend/src/services/executiveService.ts`
 - [ ] T091 [US6] 實作 GET /api/executive/summary 路由 handler（套用 authGuard、快取 TTL 25s）於 `backend/src/routes/executive.ts`
 - [ ] T092 [P] [US6] 實作 `ExecutiveService.getCapacity(addDevices?)`（計算 maxSafeAddDevices = totalMaxCapacity × 0.95 - currentDevices；產生 addDevices 0/5/10/15/20 的 capacityCurve；MAX_DEVICES_PER_TECH 從 system_settings 讀取）於 `backend/src/services/executiveService.ts`
 - [ ] T093 [P] [US6] 實作 GET /api/executive/capacity 路由 handler（addDevices query param，預設 0）於 `backend/src/routes/executive.ts`
-- [ ] T094 [P] [US6] 撰寫 executive 端點整合測試（驗證 KPI 計算、maxSafeAddDevices 邏輯）於 `backend/tests/integration/executive.test.ts`
 
 ### 前端實作
 
@@ -284,7 +299,7 @@ Foundational (T013-T038)
 │  可平行執行（Phase 2 完成後）                         │
 │                                                     │
 │  US1 設備總覽 (T039-T047) ← P1 MVP                  │
-│  US4 告警中心 (T048-T058) ← P1                      │
+│  US4 告警中心 (T048–T053a–T054a–T058) ← P1          │
 │  US2 風險排序 (T059-T066) ← P2（依賴 US1 路由）     │
 │  US3 單機履歷 (T067-T079) ← P2（依賴 US1 入口）     │
 │  US5 月報雛形 (T080-T089) ← P3                      │
@@ -337,21 +352,21 @@ T058 (AlertCenterPage)
 
 | Phase | 任務數 | 說明 |
 |-------|--------|------|
-| Phase 1: Setup | 12 (T001–T012) | 專案初始化 |
+| Phase 1: Setup | 13 (T001–T007a–T012) | 專案初始化（含 CI）|
 | Phase 2: Foundational | 26 (T013–T038) | 後端 + 前端基礎建設 |
 | Phase 3: US1 設備總覽 | 9 (T039–T047) | P1 MVP |
-| Phase 4: US4 告警中心 | 11 (T048–T058) | P1 |
+| Phase 4: US4 告警中心 | 13 (T048–T053a–T054a–T058) | P1 |
 | Phase 5: US2 風險排序 | 8 (T059–T066) | P2 |
 | Phase 6: US3 單機履歷 | 13 (T067–T079) | P2 |
 | Phase 7: US5 月報雛形 | 10 (T080–T089) | P3 |
 | Phase 8: US6 老闆決策 | 11 (T090–T100) | P3 |
 | Final: Polish | 9 (T101–T109) | 收尾 |
-| **合計** | **109** | |
+| **合計** | **112** | |
 
 | 使用者故事 | 後端任務數 | 前端任務數 | 整合測試 |
 |-----------|----------|----------|--------|
 | US1 設備總覽 | 4 | 4 | ✅ T043 |
-| US4 告警中心 | 7 | 4 | ✅ T054 |
+| US4 告警中心 | 9 | 4 | ✅ T054, T054a |
 | US2 風險排序 | 4 | 3 | ✅ T063 |
 | US3 單機履歷 | 6 | 6 | ✅ T073 |
 | US5 月報雛形 | 4 | 5 | ✅ T083 |
