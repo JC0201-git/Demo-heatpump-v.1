@@ -9,7 +9,7 @@
 
 本系統為熱泵與熱水設備維運監控 Dashboard，管理最多 80 台設備（7 台真實資料 + 73 台 Mock）。系統以「快速完成 Demo、可平順升級到 MVP」為雙目標：Demo 階段以靜態 Mock 資料填充、後端快速整合已知 InfluxDB / MySQL；MVP 階段再逐步替換 Mock 設備為真實資料，並加入自動告警判斷與角色權限。
 
-**選定技術棆**：
+**選定技術棧**：
 - 前端：React 18 + TypeScript 5 + Vite + ECharts + Zustand
 - 後端：Fastify 4 + TypeScript 5 + Drizzle ORM（MySQL 2）+ `influx`（InfluxDB 1.x）
 - 資料庫：MySQL 8.0（管理資料）+ InfluxDB 1.8（時序資料）
@@ -18,28 +18,28 @@
 
 ---
 
-## Technical Context
+## 技術脈絡
 
-**Language/Version**: TypeScript 5.x（前端 React 18、後端 Node.js 20 LTS）  
-**Primary Dependencies**: Fastify 4、Drizzle ORM、influx（InfluxDB 1.x）、ECharts、Zustand、jsPDF + html2canvas  
-**Storage**: MySQL 8.0（管理與告警資料）+ InfluxDB 1.8（時序用電與設備狀態）  
-**Testing**: Vitest（前端）+ Jest + Supertest（後端 API）；覆蓋率目標 ≥ 80%  
-**Target Platform**: Ubuntu Linux 22.04（AWS EC2）；桌面瀏覽器 Chrome / Firefox，1280px 以上  
-**Project Type**: web-service（前後端分離 + REST API）  
-**Performance Goals**: API p95 ≤ 500 ms；告警中心頁面載入 ≤ 3 秒；月報 PDF ≤ 30 秒  
-**Constraints**: 後端記憶體預算 ≤ 512 MB；前端 bundle ≤ 2 MB gzip；前端不可直接連接資料庫  
-**Scale/Scope**: 80 台設備、6 頁面、~10 位並發使用者
+**語言 / 版本**: TypeScript 5.x（前端 React 18、後端 Node.js 20 LTS）
+**主要依賴**: Fastify 4、Drizzle ORM、influx（InfluxDB 1.x）、ECharts、Zustand、jsPDF + html2canvas
+**儲存層**: MySQL 8.0（管理與告警資料）+ InfluxDB 1.8（時序用電與設備狀態）
+**測試工具**: Vitest（前端）+ Jest + Supertest（後端 API）；覆蓋率目標 ≥ 80%
+**目標平台**: Ubuntu Linux 22.04（AWS EC2）；桌面瀏覽器 Chrome / Firefox，1280px 以上
+**專案類型**: web-service（前後端分離 + REST API）
+**效能目標**: API p95 ≤ 500 ms；告警中心頁面載入 ≤ 3 秒；月報 PDF ≤ 30 秒；主要 UI 首次 render 與互動後 render p95 ≤ 500 ms
+**限制條件**: 後端記憶體預算 ≤ 512 MB；前端 bundle ≤ 2 MB gzip；前端不可直接連接資料庫
+**規模 / 範圍**: 80 台設備、6 頁面、~10 位並發使用者
 
 ---
 
-## Constitution Check
+## Constitution 合規檢查
 
-*GATE：Phase 0 研究前須通過；Phase 1 設計後再複核。*
+*品質閘門：第 0 階段研究前須通過；第 1 階段設計後再複核。*
 
 - [x] **I. Code Quality**：ESLint + Prettier（前端）、ESLint（後端）已確認；函式圈複雜度上限 10，超過者須拆分 service。
-- [x] **II. Testing Standards**：Vitest（前端）/ Jest + Supertest（後端）已選定；目標覆蓋率 ≥ 80%；TDD 用於 API handler 與風險分數計算。
+- [x] **II. Testing Standards**：Vitest（前端）/ Jest + Supertest（後端）已選定；目標覆蓋率 ≥ 80%；所有使用者故事、API handler 與風險分數計算均採 Red-Green-Refactor，任務清單以「測試先行」小節明確排序。
 - [x] **III. UX Consistency**：設計 token（深綠黑底 `#0d1f1a`、強調色 `#a3e635`、警示色紅 `#ef4444`、離線色灰 `#6b7280`）；WCAG 2.1 AA 最低標準。
-- [x] **IV. Performance Requirements**：API p95 ≤ 500 ms（快取輔助）；後端記憶體 ≤ 512 MB；前端 bundle ≤ 2 MB；CI benchmark 覆蓋設備列表與告警中心端點。
+- [x] **IV. Performance Requirements**：API p95 ≤ 500 ms（快取輔助）；主要 UI render p95 ≤ 500 ms；後端記憶體 ≤ 512 MB；前端 bundle ≤ 2 MB；CI benchmark 覆蓋 API critical path 與 UI render；staging deployment 必須先於 production release。
 - [x] **V. Documentation Language**：本計畫及所有 spec / quickstart 文件以繁體中文（zh-TW）撰寫；UI 文案、錯誤訊息均為繁體中文；程式模組名稱 / API 端點保留英文。
 
 ---
@@ -51,15 +51,15 @@
 ```text
 specs/001-heatpump-dashboard-6pages/
 ├── plan.md              # 本文件（/speckit.plan 輸出）
-├── research.md          # Phase 0 研究報告
-├── data-model.md        # Phase 1 資料模型
-├── quickstart.md        # Phase 1 快速入門
-├── contracts/           # Phase 1 API 合約
+├── research.md          # 第 0 階段研究報告
+├── data-model.md        # 第 1 階段資料模型
+├── quickstart.md        # 第 1 階段快速入門
+├── contracts/           # 第 1 階段 API 合約
 │   ├── auth.md
 │   ├── devices.md
 │   ├── alerts.md
 │   └── risk-reports-executive-system.md
-└── tasks.md             # Phase 2 任務清單（/speckit.tasks 輸出）
+└── tasks.md             # 第 2 階段任務清單（/speckit.tasks 輸出）
 ```
 
 ### 原始碼（儲存庫根目錄）
@@ -619,6 +619,7 @@ location /     { proxy_pass http://frontend:80; }
 | 測試類型 | 目標 | 範例 |
 |---------|------|------|
 | 元件渲染 | 各頁面主要元件正確渲染 | `DeviceTable` 顯示 80 台設備 |
+| UI render 效能 | 主要頁面首次 render 與互動後 render p95 ≤ 500 ms | `AlertCenterPage` 80 筆告警資料 render benchmark |
 | 篩選 / 搜尋 | 狀態篩選、關鍵字搜尋 | 篩選「異常」後只顯示異常設備 |
 | 圖表資料 | ECharts 接收正確 series 資料 | 30 日折線圖 x 軸 = 30 個日期 |
 | 缺欄位容錯 | `null` 顯示 `--` 或「不適用」 | COP 欄位 null 且 supportsCoP=false |
@@ -655,7 +656,14 @@ location /     { proxy_pass http://frontend:80; }
 | 告警中心（80 筆告警）| 頁面載入 ≤ 3 秒 |
 | 30 日趨勢圖 | API 回應 ≤ 500 ms（走 daily summary 快取）|
 | 月報 PDF 產生 | ≤ 30 秒 |
+| 主要 UI render | 首次 render 與互動後 render p95 ≤ 500 ms |
 | 30 秒輪詢（10 並發）| 無記憶體洩漏，CPU < 50% |
+
+### CI/CD 與 Staging Gate
+
+- 每個 pull request 必須執行 lint、unit tests、integration tests、coverage threshold、build 與關鍵路徑效能 benchmark；任一失敗必須阻擋合併。
+- 修改 critical path（設備列表、告警中心、風險排序、月報、老闆決策頁）時，CI 必須執行 API p95 與 UI render p95 benchmark。
+- production release 前必須完成 staging deployment；staging smoke test 至少覆蓋 Docker 啟動、健康檢查、登入、六頁主要路由與 API health。
 
 ---
 
@@ -693,7 +701,7 @@ location /     { proxy_pass http://frontend:80; }
 | 產物 | 路徑 |
 |------|------|
 | 功能規格 | [spec.md](./spec.md) |
-| Phase 0 研究報告 | [research.md](./research.md) |
+| 第 0 階段研究報告 | [research.md](./research.md) |
 | 資料模型（InfluxDB + MySQL DDL）| [data-model.md](./data-model.md) |
 | API 合約（Auth）| [contracts/auth.md](./contracts/auth.md) |
 | API 合約（設備）| [contracts/devices.md](./contracts/devices.md) |
