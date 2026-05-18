@@ -6,347 +6,363 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 **輸入**：設計文件來自 `/specs/001-heatpump-dashboard-6pages/`  
 **必要前置文件**：plan.md ✅、spec.md ✅、research.md ✅、data-model.md ✅、contracts/ ✅、quickstart.md ✅  
-**測試**：spec.md Constitution II 明確規範「TDD 用於 API handler 與風險分數計算」；每個使用者故事的測試任務必須排在對應實作任務之前，先確認測試失敗後才可實作。
+**測試**：Constitution II 明確要求 TDD、每個使用者故事至少一個整合測試、修改模組覆蓋率 ≥ 80%；本任務清單將測試任務排在對應實作任務之前。  
 **組織方式**：任務依使用者故事分組，支援各故事獨立實作與驗收。
 
 ## 格式說明
 
-- **[P]**：可平行執行（不同檔案，無對尚未完成任務的依賴）
-- **[Story]**：所屬使用者故事標籤（US1–US6）；專案建置 / 基礎設施 / 收尾階段不附此標籤
-- 說明中含精確的檔案路徑
-- **測試先行**：標示「測試先行」的小節必須先完成並確認失敗，再開始同階段的實作任務
+- **[P]**：可平行執行（不同檔案，且不依賴尚未完成的任務）
+- **[Story]**：使用者故事標籤（US1–US6）；專案建置、基礎設施與收尾任務不加故事標籤
+- 每個任務均包含可落地的檔案路徑
+- 測試先行任務必須先寫好並確認失敗，再開始同階段實作
 
 ---
 
 ## 第 1 階段：專案建置
 
-**目標**：建立前後端專案骨架、開發工具設定、Docker 部署基礎
+**目標**：建立前後端專案骨架、開發工具設定與 Docker 部署基礎。
 
 - [ ] T001 建立前端專案架構（Vite 5 + React 18 + TypeScript 5 + Tailwind CSS v3 + React Router v6 + ECharts `echarts-for-react` + Zustand + Axios + jsPDF + html2canvas）→ `frontend/`
-- [ ] T002 [P] 建立後端專案架構（Fastify 4 + TypeScript 5 + Drizzle ORM + mysql2 + influx@5 + bcryptjs + node-cron + @fastify/jwt + @fastify/cookie + @fastify/cors + @fastify/rate-limit）→ `backend/`
-- [ ] T003 [P] 設定前端 ESLint + Prettier 規則（Constitution I）→ `frontend/.eslintrc.cjs`、`frontend/.prettierrc`
-- [ ] T004 [P] 設定後端 ESLint 規則（Constitution I）→ `backend/.eslintrc.cjs`
-- [ ] T005 [P] 建立 Docker Compose 服務定義（nginx :80 + frontend :3000 + backend-api :3001）與 Nginx 反向代理設定（`/api/*` → backend-api:3001，`/*` → React SPA）→ `docker/docker-compose.yml`、`docker/nginx/default.conf`
-- [ ] T006 [P] 建立環境變數範本（JWT_SECRET、MYSQL_*、INFLUXDB_*、DEVICE_CACHE_TTL=25、REPORT_CACHE_TTL=300、MAX_DEVICES_PER_TECH=20、MAX_WORK_ORDERS_PER_TECH=10）與 `.gitignore`（排除 `docker/.env`）→ `docker/env.example`、`.gitignore`
+- [ ] T002 [P] 建立後端專案架構（Fastify 4 + TypeScript 5 + Drizzle ORM + mysql2 + influx@5 + bcryptjs + node-cron + @fastify/jwt + @fastify/cookie + @fastify/cors + @fastify/rate-limit + node-cache）→ `backend/`
+- [ ] T003 [P] 設定前端 ESLint、Prettier、Vitest 與 Testing Library 基礎設定（Constitution I/II）→ `frontend/.eslintrc.cjs`、`frontend/.prettierrc`、`frontend/vite.config.ts`
+- [ ] T004 [P] 設定後端 ESLint、Prettier、Jest 與 Supertest 基礎設定（Constitution I/II）→ `backend/.eslintrc.cjs`、`backend/.prettierrc`、`backend/jest.config.ts`
+- [ ] T005 [P] 建立 Docker Compose 服務定義與 Nginx 反向代理（`/api/*` → backend-api:3001，`/*` → frontend:80）→ `docker/docker-compose.yml`、`docker/nginx/default.conf`
+- [ ] T006 [P] 建立環境變數範本與 git ignore（JWT_SECRET、MYSQL_*、INFLUXDB_*、DEVICE_CACHE_TTL=25、REPORT_CACHE_TTL=300、MAX_DEVICES_PER_TECH=20、MAX_WORK_ORDERS_PER_TECH=10、ALERT_OVERDUE_HOURS=24）→ `docker/env.example`、`.gitignore`
 
-**檢查點**：前後端可各自 `npm install` 並啟動；`docker compose up --build` 可啟動三個容器
+**檢查點**：前後端可各自安裝依賴並啟動；`docker compose up --build` 可啟動 frontend、backend-api、reverse-proxy。
 
 ---
 
 ## 第 2 階段：基礎設施
 
-**目標**：資料庫 Schema、認證框架、Mock 資料、前端共用基礎——所有使用者故事都依賴本階段
-
-**⚠️ 關鍵**：本階段完成前，任何使用者故事均不可開始實作
+**目標**：資料庫 Schema、資料來源抽象、認證、系統端點、Mock/Real 混合資料、前端共用基礎。  
+**關鍵**：本階段完成前，不得開始任何使用者故事實作。
 
 ### 2A：後端基礎設施
 
-- [ ] T007 定義 Drizzle ORM MySQL Schema（11 張表：clients、sites、devices、meters、device_meter_mappings、alerts、work_orders、technicians、users、system_settings、risk_score_weights；完整對應 data-model.md DDL）→ `backend/src/db/schema.ts`
-- [ ] T008 建立 Drizzle migration 初始腳本（含所有 DDL Index 與 CHECK constraint）→ `backend/src/db/migrations/0001_init.sql`
-- [ ] T009 [P] 建立資料庫 seed 腳本（system_settings 5 條（含 MAX_DEVICES_PER_TECH=20 及 MAX_WORK_ORDERS_PER_TECH=10 兩個獨立設定項）+ risk_score_weights 6 條 + 7 台 real 設備測試資料；至少 1 筆 users（帳號 admin、bcrypt hash 密碼，供登入測試）；3–5 筆 technicians（status=active，供告警指派下拉使用）；對應 clients 與 sites 基礎資料）→ `backend/src/db/seed.ts`
-- [ ] T010 [P] 建立 InfluxDB 1.x 查詢模組（連線設定 + InfluxQL 查詢函式，支援 power_meter、heatpump_status、energy_daily_summary、heatpump_daily_summary）→ `backend/src/influx/client.ts`、`backend/src/influx/queries.ts`
-- [ ] T011 [P] 建立 73 台 Mock 設備 JSON 資料（DEV-008 ～ DEV-080；每檔含 realtimeStatus、30 日用電與運轉歷史、告警紀錄、工單紀錄；數值隨機化）→ `mock-data/devices/DEV-008.json` … `mock-data/devices/DEV-080.json`
-- [ ] T012 建立 Mock 資料載入器（伺服器啟動時一次讀取所有 JSON 至記憶體；提供 `getMockDevice(id)`、`getMockDeviceList()` 方法）→ `backend/src/mock/loader.ts`
-- [ ] T013 建立 dataSourceService（依 `data_source_type` 路由至 real InfluxDB/MySQL 或 mock loader）→ `backend/src/services/dataSourceService.ts`
-- [ ] T014 初始化 Fastify 應用程式（註冊 @fastify/cors、@fastify/jwt httpOnly cookie、@fastify/cookie、@fastify/rate-limit；設定全域 setErrorHandler 統一 JSON 錯誤格式 `{error, message, statusCode}`）→ `backend/src/app.ts`、`backend/src/server.ts`
-- [ ] T015 實作 JWT 認證 preHandler hook（驗證 `hp_token` httpOnly cookie；驗失回傳 401 UNAUTHORIZED）→ `backend/src/middleware/auth.ts`
-- [ ] T016 [P] 定義後端共用 TypeScript DTO 型別（DeviceListItem、DeviceDetail、AlertItem、WorkOrder、RiskDevice、MonthlyReport、ExecutiveSummary、CapacityResult 等）→ `backend/src/types/device.ts`、`backend/src/types/alert.ts`、`backend/src/types/common.ts`
-- [ ] T017 [P] 實作系統健康檢查端點（`GET /api/system/health` 回傳 influxdb + mysql 連線狀態；`GET /api/system/last-updated`）→ `backend/src/routes/system.ts`
-- [ ] T106 [P] 單元測試 dailySummaryJob（Arrange：以 stub 注入 InfluxDB client 與 queries；Act：呼叫 `triggerDailySummary()`；Assert：驗 energy_daily_summary 寫入呼叫恰好一次、heatpump_daily_summary 寫入呼叫恰好一次、InfluxDB 連線失敗時錯誤被記錄且不拋出未攔截例外；Constitution II TDD：測試先於 T065 完整實作；覆蓋率目標 ≥ 80%）→ `backend/tests/unit/jobs/dailySummaryJob.test.ts`
-- [ ] T065 建立 node-cron 每日彙總工作（每日 00:05 執行：聚合前一日 `power_meter` 寫入 InfluxDB `energy_daily_summary`；聚合 `heatpump_status` 寫入 `heatpump_daily_summary`；依賴 T010 InfluxDB queries + T007 MySQL schema；同時為 US3 單機履歷（T055/T056）與 US5 月報（T066）提供彙整資料來源；開發環境提供 `triggerDailySummary()` 手動觸發方法）→ `backend/src/jobs/dailySummaryJob.ts`
+- [ ] T007 定義 Drizzle ORM MySQL Schema（clients、sites、devices、meters、device_meter_mappings、alerts、work_orders、technicians、users、system_settings、risk_score_weights；含索引與 CHECK constraint）→ `backend/src/db/schema.ts`
+- [ ] T008 建立 Drizzle 初始 migration SQL（完整對應 data-model.md DDL 與索引）→ `backend/src/db/migrations/0001_init.sql`
+- [ ] T009 [P] 建立 seed 腳本（80 台 devices：DEV-001～DEV-007 為 real、DEV-008～DEV-080 為 mock；system_settings 含 polling_interval_sec、alert_page_size、risk_score_refresh_min、default_query_days、MAX_DEVICES_PER_TECH、MAX_WORK_ORDERS_PER_TECH、ALERT_OVERDUE_HOURS；risk_score_weights 6 條；users 與 technicians 初始資料）→ `backend/src/db/seed.ts`
+- [ ] T010 [P] 建立 InfluxDB 1.x client 與 InfluxQL 查詢封裝（power_meter、heatpump_status、energy_daily_summary、heatpump_daily_summary；包含缺欄位回傳 null）→ `backend/src/influx/client.ts`、`backend/src/influx/queries.ts`
+- [ ] T011 [P] 建立 Mock 資料產生腳本與 73 台 Mock JSON（每檔含 realtimeStatus、powerDailySummary、operationDailySummary、alerts、workOrders；數值隨機但可重現）→ `scripts/generate-mock-data.ts`、`mock-data/devices/DEV-008.json`
+- [ ] T012 建立 Mock 資料載入器（啟動時讀取 `mock-data/devices/` 至記憶體；提供 getMockDevice、getMockDeviceList、getPowerSummary、getOperationSummary）→ `backend/src/mock/loader.ts`
+- [ ] T013 建立 dataSourceService（依 `devices.data_source_type` 路由至 real InfluxDB/MySQL 或 mock loader；統一 API response DTO；real API 失敗時保留最後快取值並標記 stale）→ `backend/src/services/dataSourceService.ts`
+- [ ] T014 初始化 Fastify 應用程式（註冊 cors、jwt、cookie、rate-limit；全域錯誤格式 `{error,message,statusCode}`；掛載 protected route preHandler）→ `backend/src/app.ts`、`backend/src/server.ts`
+- [ ] T015 實作 JWT 認證 preHandler hook（驗證 `hp_token` httpOnly cookie；驗證失敗回傳 401 UNAUTHORIZED 與繁中錯誤訊息）→ `backend/src/middleware/auth.ts`
+- [ ] T016 [P] 定義後端共用 DTO 型別（DeviceListItem、DeviceDetail、AlertItem、WorkOrder、RiskDevice、MonthlyReport、ExecutiveSummary、CapacityResult、ApiMeta）→ `backend/src/types/device.ts`、`backend/src/types/alert.ts`、`backend/src/types/common.ts`
+- [ ] T017 [P] 系統端點整合測試（GET /api/system/health 驗 mysql/influxdb 狀態與 503 降級；GET /api/system/last-updated 驗 ISO8601 updatedAt；AAA；測試先於 T018）→ `backend/tests/integration/system.test.ts`
+- [ ] T018 實作系統端點（GET /api/system/health、GET /api/system/last-updated；health 不需登入，其餘端點受 JWT 保護）→ `backend/src/routes/system.ts`
+- [ ] T019 [P] dailySummaryJob 單元測試（stub Influx client；驗 energy_daily_summary 與 heatpump_daily_summary 寫入；InfluxDB 失敗時記錄錯誤且不拋未攔截例外；測試先於 T020）→ `backend/tests/unit/jobs/dailySummaryJob.test.ts`
+- [ ] T020 建立 node-cron 每日彙總工作（每日 00:05 聚合 power_meter 與 heatpump_status，支援 `triggerDailySummary()` 手動觸發）→ `backend/src/jobs/dailySummaryJob.ts`
 
-### 2B：認證 API（Auth Backend）
+### 2B：認證 API
 
-- [ ] T107 [P] 認證 API 整合測試（`POST /api/auth/login` 正確帳密 → 驗回傳 httpOnly cookie 且可存取受保護路由；`POST /api/auth/logout` → 驗 cookie 清除後 401；`GET /api/auth/me` → 驗回傳使用者資訊；登入失敗驗統一回傳「帳號或密碼錯誤」防帳號枚舉；連續第 11 次登入應回傳 429；AAA 模式；TDD：測試先於 T018 實作；Constitution II 合規）→ `backend/tests/integration/auth.test.ts`
-- [ ] T018 實作認證路由（`POST /api/auth/login`：bcrypt 驗密 + 設定 httpOnly JWT cookie + rate-limit 10次/分；`POST /api/auth/logout`：清除 cookie；`GET /api/auth/me`：回傳登入資訊；登入失敗統一回傳「帳號或密碼錯誤」防帳號枚舉）→ `backend/src/routes/auth.ts`
+- [ ] T021 [P] 認證 API 整合測試（login 成功設 httpOnly cookie；logout 清 cookie；me 回傳使用者；登入錯誤不暴露帳號存在；第 11 次/分鐘回 429；測試先於 T022）→ `backend/tests/integration/auth.test.ts`
+- [ ] T022 實作認證路由（POST /api/auth/login、POST /api/auth/logout、GET /api/auth/me；bcrypt cost=12；JWT 8 小時；rate-limit 10 次/分鐘）→ `backend/src/routes/auth.ts`
 
 ### 2C：前端基礎設施
 
-- [ ] T019 [P] 定義前端共用 TypeScript 型別（DeviceStatus、DeviceListItem、AlertItem、RiskDevice 等；與後端 DTO 對齊）→ `frontend/src/types/device.ts`、`frontend/src/types/alert.ts`、`frontend/src/types/risk.ts`
-- [ ] T020 建立 React App 主架構（React Router v6 路由結構 + ProtectedRoute + MainLayout + 左側 Sidebar 導覽列包含 6 頁連結）→ `frontend/src/App.tsx`、`frontend/src/components/Layout/Sidebar.tsx`、`frontend/src/components/Layout/MainLayout.tsx`
-- [ ] T021 [P] 設定 Tailwind CSS 設計 Token（主背景 `#0d1f1a`、卡片背景 `#112820`、強調色 `#a3e635`、四種狀態色 normal/alert/offline/maintenance）→ `frontend/tailwind.config.ts`
-- [ ] T022 [P] 建立 Axios 實例與攔截器（withCredentials=true、baseURL=/api、401 自動重導 /login、回應時間戳快取標記）→ `frontend/src/services/api.ts`
-- [ ] T023 [P] 建立共用 StatusBadge 元件（四色語意：綠 normal / 紅 alert / 灰 offline / 橘 maintenance）→ `frontend/src/components/StatusBadge.tsx`
-- [ ] T024 [P] 建立共用 AlertBanner 元件（「API 連線異常」頁面頂部橫幅 + 「資料可能過期」行內標籤）→ `frontend/src/components/AlertBanner.tsx`
-- [ ] T025 建立登入頁元件（帳號密碼表單 → `POST /api/auth/login` → 成功導向 `/devices`）→ `frontend/src/pages/Login/LoginPage.tsx`
-- [ ] T026 [P] 建立 authStore（Zustand）與 useAuth Hook（儲存登入使用者資訊、登出方法）→ `frontend/src/stores/authStore.ts`、`frontend/src/hooks/useAuth.ts`
-- [ ] T027 [P] 建立路由守衛 ProtectedRoute（未登入者重導至 `/login`）→ `frontend/src/components/ProtectedRoute.tsx`
-- [ ] T028 [P] 建立 usePolling Hook（可設定間隔的定時器，預設 30s；提供 start/stop 方法）→ `frontend/src/hooks/usePolling.ts`
-- [ ] T029 [P] 建立 LastUpdatedBadge 元件（顯示頁面頂部最後資料更新時間，整合過期資料偵測）→ `frontend/src/components/LastUpdatedBadge.tsx`
+- [ ] T023 [P] 定義前端共用 TypeScript 型別（與後端 DTO 對齊，含 stale/meta 欄位與繁中 label 型別）→ `frontend/src/types/device.ts`、`frontend/src/types/alert.ts`、`frontend/src/types/risk.ts`、`frontend/src/types/common.ts`
+- [ ] T024 建立 React App 主架構（React Router v6、ProtectedRoute、MainLayout、左側 Sidebar 六頁導覽、登入路由 `/login`、預設設備總覽 `/`）→ `frontend/src/App.tsx`、`frontend/src/components/Layout/Sidebar.tsx`、`frontend/src/components/Layout/MainLayout.tsx`
+- [ ] T025 [P] 設定 Tailwind CSS 設計 Token（深綠黑背景、黃綠強調色、normal/alert/offline/maintenance 狀態色、AA 對比基準）→ `frontend/tailwind.config.ts`
+- [ ] T026 [P] 建立 Axios 實例與攔截器（withCredentials=true、baseURL=/api、401 導向 /login、讀取 meta.updatedAt 與 stale 標記）→ `frontend/src/services/api.ts`
+- [ ] T027 [P] 建立共用 StatusBadge 元件（綠 normal、紅 alert、灰 offline、橘 maintenance；輸出繁中 label）→ `frontend/src/components/StatusBadge.tsx`
+- [ ] T028 [P] 建立共用 AlertBanner 元件（「API 連線異常」頁面橫幅與「資料可能過期」行內標籤）→ `frontend/src/components/AlertBanner.tsx`
+- [ ] T029 建立登入頁元件（帳號密碼表單、錯誤訊息繁中、成功後導向 `/`）→ `frontend/src/pages/Login/LoginPage.tsx`
+- [ ] T030 [P] 建立 authStore 與 useAuth Hook（登入使用者資訊、載入 me、登出方法）→ `frontend/src/stores/authStore.ts`、`frontend/src/hooks/useAuth.ts`
+- [ ] T031 [P] 建立 ProtectedRoute（未登入者重導 `/login`，登入中顯示可存取的載入狀態）→ `frontend/src/components/ProtectedRoute.tsx`
+- [ ] T032 [P] 建立 usePolling Hook（預設 30 秒，可 start/stop，頁面卸載清理 timer）→ `frontend/src/hooks/usePolling.ts`
+- [ ] T033 [P] 建立 LastUpdatedBadge 元件（顯示最後資料更新時間，支援 stale 標記）→ `frontend/src/components/LastUpdatedBadge.tsx`
+- [ ] T034 [P] 建立 PageStatusHeader 共用元件（每個受保護頁面統一放置 AlertBanner + LastUpdatedBadge，確保 FR-034/FR-035 跨頁一致）→ `frontend/src/components/PageStatusHeader.tsx`
 
-**檢查點**：`GET /api/system/health` 回應健康；前端顯示登入頁並可登入後進入受保護路由
+**檢查點**：`GET /api/system/health` 回應；登入頁可登入；受保護路由正常；系統具備 real/mock 混合資料基礎。
 
 ---
 
 ## 第 3 階段：使用者故事 1 — 設備總覽（優先順序：P1）🎯 MVP
 
-**目標**：維運工程師可一眼掌握 80 台設備狀態，依狀態篩選、依關鍵字搜尋，並導向單機履歷
-
-**獨立驗收測試**：帶入 80 台設備 mock 資料 → 列表顯示全部設備；狀態篩選僅顯示符合條件設備；點擊設備列導向 `/devices/:deviceId`
+**目標**：維運工程師可一眼掌握 80 台設備狀態，依狀態篩選、依關鍵字搜尋，並導向單機履歷。  
+**獨立驗收測試**：以 7 台 real fixture/stub + 73 台 mock 載入設備列表，驗證 80 台完整顯示、狀態篩選、前綴搜尋、離線顯示與點擊導向。
 
 ### 測試先行（US1）
 
-- [ ] T090 [US1] US1 整合測試：設備列表主要成功路徑（GET /api/devices 帶入 80 台 mock 資料 → 驗回傳設備清單欄位完整、status 篩選結果正確、search 模糊搜尋符合預期；AAA 模式；TDD：測試先於實作；**SC-001 人工驗收**：完成後需計時「工程師進入設備總覽頁 → 識別所有異常設備」流程 ≤ 30 秒，結果記錄於驗收報告）→ `backend/tests/integration/devices.test.ts`
-- [ ] T100 [P] [US1] US1 前端單元測試：DeviceTable / StatusFilter / SearchBar 元件（Vitest + Testing Library；測試項目：StatusBadge 顏色 token 正確渲染、篩選按鈕點擊觸發 store 更新、搜尋輸入 debounce 行為、離線設備顯示「--」；覆蓋率 ≥ 80%；TDD：測試先於元件實作）→ `frontend/tests/unit/DeviceList/`
+- [ ] T035 [US1] 設備列表整合測試（GET /api/devices 使用 7 real fixture/stub + 73 mock；驗 status/search/page/limit、real API 失敗時 stale/cache 行為、欄位完整；SC-001 人工計時結果寫入驗收紀錄；測試先於 T037/T038）→ `backend/tests/integration/devices.test.ts`、`docs/acceptance-sc001.md`
+- [ ] T036 [P] [US1] 設備總覽前端單元測試（DeviceTable、StatusFilter、SearchBar；驗 StatusBadge 色彩 token、篩選、搜尋 debounce、離線欄位顯示「--」、PageStatusHeader 顯示最後更新時間）→ `frontend/tests/unit/DeviceList/`
 
 ### 後端實作（US1）
 
-- [ ] T030 [US1] 實作 deviceService.getDeviceList()（讀取 MySQL + Mock JSON 彙整；依 status/search 篩選；排序：alert > maintenance > offline > normal 再依 riskScore 降序；node-cache TTL 25s）→ `backend/src/services/deviceService.ts`
-- [ ] T031 [US1] 實作 `GET /api/devices` 路由（套用 authGuard；解析 status、search、page、limit query params；search 欄位採 `LIKE 'keyword%'` 前綴模糊比對，不區分大小寫）→ `backend/src/routes/devices.ts`
+- [ ] T037 [US1] 實作 deviceService.getDeviceList()（整合 MySQL devices + dataSourceService；排序 alert > maintenance > offline > normal 再 riskScore DESC；node-cache TTL 25s）→ `backend/src/services/deviceService.ts`
+- [ ] T038 [US1] 實作 GET /api/devices 路由（authGuard、status/search/page/limit query、SQL `LIKE 'keyword%'` 不分大小寫、統一回應 meta.total/updatedAt）→ `backend/src/routes/devices.ts`
 
 ### 前端實作（US1）
 
-- [ ] T032 [US1] 建立 deviceStore（Zustand）整合 usePolling（30s 輪詢 `/api/devices`，支援快取過期偵測）→ `frontend/src/stores/deviceStore.ts`
-- [ ] T033 [P] [US1] 建立 DeviceTable 元件（欄位：設備編號、客戶名稱、地點、StatusBadge、最後心跳時間；離線設備即時欄位顯示「--」；點擊列導向 `/devices/:deviceId`）→ `frontend/src/pages/DeviceList/DeviceTable.tsx`
-- [ ] T034 [P] [US1] 建立 StatusFilter 元件（全部 / 正常 / 異常 / 離線 / 待維修 篩選按鈕，顯示各狀態數量）→ `frontend/src/pages/DeviceList/StatusFilter.tsx`
-- [ ] T035 [P] [US1] 建立 SearchBar 元件（依設備編號或客戶名稱即時搜尋，顯示篩選結果數量）→ `frontend/src/pages/DeviceList/SearchBar.tsx`
-- [ ] T036 [US1] 組裝 DeviceList 頁面（整合 AlertBanner + LastUpdatedBadge + StatusFilter + SearchBar + DeviceTable）→ `frontend/src/pages/DeviceList/DeviceListPage.tsx`
+- [ ] T039 [US1] 建立 deviceStore（Zustand；輪詢 GET /api/devices、儲存 filter/search/page、保留 stale cache）→ `frontend/src/stores/deviceStore.ts`
+- [ ] T040 [P] [US1] 建立 DeviceTable 元件（設備編號、客戶名稱、地點、StatusBadge、最後心跳；離線即時欄位「--」；點擊列導向 `/devices/:deviceId`）→ `frontend/src/pages/DeviceList/DeviceTable.tsx`
+- [ ] T041 [P] [US1] 建立 StatusFilter 元件（全部/正常/異常/離線/待維修，顯示各狀態數量）→ `frontend/src/pages/DeviceList/StatusFilter.tsx`
+- [ ] T042 [P] [US1] 建立 SearchBar 元件（設備編號或客戶名稱前綴模糊搜尋，顯示篩選結果數量）→ `frontend/src/pages/DeviceList/SearchBar.tsx`
+- [ ] T043 [US1] 組裝 DeviceList 頁面（PageStatusHeader + StatusFilter + SearchBar + DeviceTable；30 秒輪詢；桌面 1280px 以上版面）→ `frontend/src/pages/DeviceList/DeviceListPage.tsx`
 
-**檢查點**：US1 可獨立測試——80 台設備完整顯示；篩選 / 搜尋正常；點擊導向設備路由
+**檢查點**：US1 可獨立展示登入後的設備總覽 MVP。
 
 ---
 
 ## 第 4 階段：使用者故事 4 — 告警中心（優先順序：P1）
 
-**目標**：值班工程師可集中管理即時告警、指派負責人、標記已解除；未指派告警置頂，高嚴重性視覺突出
-
-**獨立驗收測試**：帶入 mock 告警資料 → 未指派置頂；高嚴重性紅色高亮；完成指派後狀態更新為「處理中」；解除後記錄 resolved_at
+**目標**：值班工程師可集中管理即時告警、指派負責人、標記已解除；未指派告警置頂，高嚴重性視覺突出。  
+**獨立驗收測試**：帶入告警資料後，驗未指派置頂、高嚴重性高亮、狀態/類型篩選、指派與解除狀態正確寫回。
 
 ### 測試先行（US4）
 
-- [ ] T091 [US4] US4 整合測試：告警中心主要成功路徑（GET /api/alerts → 驗未指派告警置頂、severity=high 排序正確；PUT /api/alerts/:id/assign → 驗 status 更新為 in_progress 並記錄 assigned_at；PUT /api/alerts/:id/resolve → 驗 resolved_at 正確記錄；AAA 模式；TDD：測試先於實作；**SC-002 人工驗收**：完成後需確認指派流程恰好 3 個互動步驟（點擊告警列 → 開啟 AssignModal 選擇技師 → 點擊確認），結果記錄於驗收報告）→ `backend/tests/integration/alerts.test.ts`
-- [ ] T101 [P] [US4] US4 前端單元測試：AlertTable / AlertFilter / AssignModal / ResolveButton 元件（Vitest + Testing Library；測試項目：severity=high 列紅色背景渲染、未指派告警置頂排序、AssignModal 技師下拉選擇觸發 API 呼叫、ResolveButton 確認對話框流程；覆蓋率 ≥ 80%；TDD：測試先於元件實作）→ `frontend/tests/unit/AlertCenter/`
+- [ ] T044 [US4] 告警中心整合測試（GET /api/alerts 驗未指派置頂、severity=high 排序、limit=50 分頁；PUT assign 驗 in_progress/assigned_at；PUT resolve 驗 resolved_at；SC-002 三步驟驗收寫入紀錄；測試先於 T046-T050）→ `backend/tests/integration/alerts.test.ts`、`docs/acceptance-sc002.md`
+- [ ] T045 [P] [US4] 告警中心前端單元測試（AlertTable、AlertFilter、AssignModal、ResolveButton；驗高嚴重性紅色背景、未指派置頂、技師下拉、解除確認、PageStatusHeader）→ `frontend/tests/unit/AlertCenter/`
 
 ### 後端實作（US4）
 
-- [ ] T037 [US4] 實作 alertService.getAlerts()（排序：未指派置頂 → severity 降序 → occurredAt 降序；依 status / alert_type / severity 篩選；node-cache TTL 10s）→ `backend/src/services/alertService.ts`
-- [ ] T038 [US4] 實作 `GET /api/alerts` 路由（套用 authGuard；支援 status、alert_type、severity、page、limit params）→ `backend/src/routes/alerts.ts`
-- [ ] T039 [P] [US4] 實作 alertService.assignAlert()（驗證技師存在且 active；更新 assigned_to、assigned_at；status → in_progress）與 `PUT /api/alerts/:alertId/assign` 路由（422 TECHNICIAN_NOT_FOUND；404 ALERT_NOT_FOUND）→ `backend/src/services/alertService.ts`、`backend/src/routes/alerts.ts`
-- [ ] T040 [P] [US4] 實作 alertService.resolveAlert()（驗證告警非 resolved；記錄 resolved_at；status → resolved）與 `PUT /api/alerts/:alertId/resolve` 路由（409 ALERT_ALREADY_RESOLVED）→ `backend/src/services/alertService.ts`、`backend/src/routes/alerts.ts`
-- [ ] T041 [P] [US4] 實作 `GET /api/technicians` 路由（查詢 status=active 技師清單，供前端 AssignModal 下拉使用）→ `backend/src/routes/technicians.ts`
+- [ ] T046 [US4] 實作 alertService.getAlerts()（排序：未指派置頂 → severity high/medium/low → occurredAt DESC；支援 status/alert_type/severity；node-cache TTL 10s）→ `backend/src/services/alertService.ts`
+- [ ] T047 [US4] 實作 GET /api/alerts 路由（authGuard、status/alert_type/severity/page/limit、meta.total/updatedAt）→ `backend/src/routes/alerts.ts`
+- [ ] T048 [P] [US4] 實作 alertService.assignAlert() 與 PUT /api/alerts/:alertId/assign（驗 active 技師、422 TECHNICIAN_NOT_FOUND、404 ALERT_NOT_FOUND）→ `backend/src/services/alertService.ts`、`backend/src/routes/alerts.ts`
+- [ ] T049 [P] [US4] 實作 alertService.resolveAlert() 與 PUT /api/alerts/:alertId/resolve（拒絕重複解除、409 ALERT_ALREADY_RESOLVED、記錄 resolutionNote）→ `backend/src/services/alertService.ts`、`backend/src/routes/alerts.ts`
+- [ ] T050 [P] [US4] 實作 GET /api/technicians 路由（只回傳 status=active 技師，供 AssignModal 下拉）→ `backend/src/routes/technicians.ts`
 
 ### 前端實作（US4）
 
-- [ ] T042 [US4] 建立 alertStore（Zustand；儲存告警列表、篩選條件；支援樂觀更新指派 / 解除狀態）→ `frontend/src/stores/alertStore.ts`
-- [ ] T043 [P] [US4] 建立 AlertTable 元件（欄位：告警 ID、設備編號、客戶、異常類型 label、發生時間、status badge、負責人；severity=high 列紅色背景；未指派標示置頂）→ `frontend/src/pages/AlertCenter/AlertTable.tsx`
-- [ ] T044 [P] [US4] 建立 AlertFilter 元件（依狀態：未處理 / 處理中 / 已解除；依異常類型篩選）→ `frontend/src/pages/AlertCenter/AlertFilter.tsx`
-- [ ] T045 [P] [US4] 建立 AssignModal 元件（技師下拉選擇器 Modal；呼叫 assign API；顯示指派結果回饋）→ `frontend/src/pages/AlertCenter/AssignModal.tsx`
-- [ ] T046 [P] [US4] 建立 ResolveButton 元件（確認對話框 → 呼叫 resolve API → 更新 alertStore）→ `frontend/src/pages/AlertCenter/ResolveButton.tsx`
-- [ ] T047 [US4] 組裝 AlertCenter 頁面（整合 AlertBanner + LastUpdatedBadge + AlertFilter + AlertTable + AssignModal + ResolveButton；整合 usePolling 30s 自動刷新）→ `frontend/src/pages/AlertCenter/AlertCenterPage.tsx`
+- [ ] T051 [US4] 建立 alertStore（告警列表、篩選條件、分頁、樂觀更新指派/解除、錯誤回滾）→ `frontend/src/stores/alertStore.ts`
+- [ ] T052 [P] [US4] 建立 AlertTable 元件（告警 ID、設備、客戶、異常類型、發生時間、狀態、負責人；未指派與高嚴重性視覺突出）→ `frontend/src/pages/AlertCenter/AlertTable.tsx`
+- [ ] T053 [P] [US4] 建立 AlertFilter 元件（未處理/處理中/已解除與異常類型篩選）→ `frontend/src/pages/AlertCenter/AlertFilter.tsx`
+- [ ] T054 [P] [US4] 建立 AssignModal 元件（技師下拉、呼叫 assign API、繁中結果回饋、鍵盤可操作）→ `frontend/src/pages/AlertCenter/AssignModal.tsx`
+- [ ] T055 [P] [US4] 建立 ResolveButton 元件（確認對話框、resolutionNote、呼叫 resolve API、更新 store）→ `frontend/src/pages/AlertCenter/ResolveButton.tsx`
+- [ ] T056 [US4] 組裝 AlertCenter 頁面（PageStatusHeader + AlertFilter + AlertTable + AssignModal + ResolveButton；30 秒輪詢）→ `frontend/src/pages/AlertCenter/AlertCenterPage.tsx`
 
-**檢查點**：US4 可獨立測試——告警列表排序正確；指派使狀態更新為「處理中」；解除正確記錄 resolved_at
+**檢查點**：US4 可獨立驗收即時告警管理流程。
 
 ---
 
 ## 第 5 階段：使用者故事 2 — 風險排序（優先順序：P2）
 
-**目標**：維運主管可快速看到 Top 10 高風險設備，了解風險主因與建議行動，追蹤排名變動
-
-**獨立驗收測試**：帶入設備告警與健康分數資料 → Top 10 依風險分數降序；排名變動標示（↑/↓/−）符合預期
+**目標**：維運主管可快速看到 Top 10 高風險設備，了解風險主因與建議行動，追蹤排名變動。  
+**獨立驗收測試**：帶入設備告警、工單、離線與能耗資料後，驗 Top 10 依風險分數降序，風險主因、建議行動與排名變動正確。
 
 ### 測試先行（US2）
 
-- [ ] T092 [US2] US2 整合測試：風險排序主要成功路徑（GET /api/risk/top-devices → 驗回傳恰好 10 筆、依 risk_score 降序排列、每筆含 riskReasons 陣列與 suggestedAction 及 rankChange；AAA 模式；TDD：測試先於實作）→ `backend/tests/integration/risk.test.ts`
-- [ ] T102 [P] [US2] US2 前端單元測試：RiskTable / RankBadge / RankChangeBadge 元件（Vitest；測試項目：Top 3 金色 badge 渲染、↑/↓/− 方向標示正確、建議行動標籤依分數正確顯示；覆蓋率 ≥ 80%；TDD：測試先於元件實作）→ `frontend/tests/unit/RiskRanking/`
-- [ ] T111 [P] [US2] riskScoreService 單元測試（Constitution II NON-NEGOTIABLE：TDD 用於風險分數計算；Arrange：stub MySQL 查詢分別返回各維度測試資料；Act：呼叫 `calculateRiskScore()` 及各維度計算子函式；Assert：六維度各自獨立驗算（alert_severity w=30、recent_anomaly_7d w=20、offline_hours w=20、open_work_orders w=15、energy_anomaly w=10、overdue_maintenance w=5）、正規化邊界值（0 / 50 / 100）、加權加總等於 100 時整體計算結果一致、輸出值夾至 [0, 100]；TDD：測試須先於 T048 完整實作撰寫並確認失敗；覆蓋率目標 ≥ 80%）→ `backend/tests/unit/services/riskScoreService.test.ts`
+- [ ] T057 [US2] 風險排序整合測試（GET /api/risk/top-devices 驗恰好 10 筆、risk_score DESC、riskReasons、suggestedAction、rankChange/rankDelta、5 分鐘快取；測試先於 T060/T061）→ `backend/tests/integration/risk.test.ts`
+- [ ] T058 [P] [US2] 風險排序前端單元測試（RiskTable、RankBadge、RankChangeBadge；驗 Top 3 標示、↑/↓/不變、建議行動標籤、點擊導向單機履歷、PageStatusHeader）→ `frontend/tests/unit/RiskRanking/`
+- [ ] T059 [P] [US2] riskScoreService 單元測試（六維度計算、正規化 0/50/100、權重加總、輸出夾至 [0,100]；energy_anomaly 使用 energy_daily_summary/mock powerDailySummary 的 anomalyFlag 或歷史均值；測試先於 T060）→ `backend/tests/unit/services/riskScoreService.test.ts`
 
 ### 後端實作（US2）
 
-- [ ] T048 [US2] 實作 riskScoreService（依 risk_score_weights 6 條規則計算：alert_severity 30% + recent_anomaly_7d 20% + offline_hours 20% + open_work_orders 15% + energy_anomaly 10% + overdue_maintenance 5%；寫回 `devices.risk_score`；記錄前次排名供 rankChange 計算）→ `backend/src/services/riskScoreService.ts`
-- [ ] T049 [US2] 實作 `GET /api/risk/top-devices` 路由（Top 10 + riskReasons 陣列 + suggestedAction：≥70=緊急/≥40=本週/<40=本月 + rankChange/rankDelta；5 分鐘快取）→ `backend/src/routes/risk.ts`
+- [ ] T060 [US2] 實作 riskScoreService（alert_severity、recent_anomaly_7d、offline_hours、open_work_orders、energy_anomaly、overdue_maintenance；讀 risk_score_weights；寫回 devices.risk_score；保存前次排名供 rankChange）→ `backend/src/services/riskScoreService.ts`
+- [ ] T061 [US2] 實作 GET /api/risk/top-devices 路由（Top 10、riskReasons、suggestedAction：≥70 緊急/≥40 本週/<40 本月、rankChange/rankDelta、5 分鐘快取）→ `backend/src/routes/risk.ts`
 
 ### 前端實作（US2）
 
-- [ ] T050 [P] [US2] 建立 RiskTable 元件（欄位：排名、設備編號、客戶、風險分數 badge、風險主因 tag 列表、建議行動標籤、RankChangeBadge；點擊列導向單機履歷）→ `frontend/src/pages/RiskRanking/RiskTable.tsx`
-- [ ] T051 [P] [US2] 建立 RankBadge 元件（圓形排名數字；Top 3 金色 / 其餘白色）→ `frontend/src/pages/RiskRanking/RankBadge.tsx`
-- [ ] T052 [P] [US2] 建立 RankChangeBadge 元件（↑ N 綠色 / ↓ N 紅色 / − 灰色）→ `frontend/src/pages/RiskRanking/RankChangeBadge.tsx`
-- [ ] T053 [US2] 組裝 RiskRanking 頁面（整合 LastUpdatedBadge + RiskTable + RankBadge + RankChangeBadge；usePolling 30s 刷新）→ `frontend/src/pages/RiskRanking/RiskRankingPage.tsx`
+- [ ] T062 [P] [US2] 建立 RiskTable 元件（排名、設備編號、客戶、風險分數、風險主因 tag、建議行動、RankChangeBadge；點擊列導向 `/devices/:deviceId`）→ `frontend/src/pages/RiskRanking/RiskTable.tsx`
+- [ ] T063 [P] [US2] 建立 RankBadge 元件（Top 3 金色、其餘中性色；符合深色主題 AA 對比）→ `frontend/src/pages/RiskRanking/RankBadge.tsx`
+- [ ] T064 [P] [US2] 建立 RankChangeBadge 元件（上升/下降/不變，使用圖示與文字輔助，不只靠顏色）→ `frontend/src/pages/RiskRanking/RankChangeBadge.tsx`
+- [ ] T065 [US2] 組裝 RiskRanking 頁面（PageStatusHeader + RiskTable；30 秒輪詢但尊重後端 5 分鐘風險快取）→ `frontend/src/pages/RiskRanking/RiskRankingPage.tsx`
 
-**檢查點**：US2 可獨立測試——Top 10 排序正確；排名變動標示正確
+**檢查點**：US2 可獨立驗收 Top 10 風險排序。
 
 ---
 
 ## 第 6 階段：使用者故事 3 — 單機履歷（優先順序：P2）
 
-**目標**：維運工程師可查看單台設備的四個子頁籤（用電、運轉、異常、維修）完整歷史
-
-**獨立驗收測試**：選定 DEV-001 → 設備標頭正確顯示；四個子頁籤各自正確載入時序資料；安裝未滿 30 天的設備圖表附說明文字
+**目標**：維運工程師可查看單台設備的用電、運轉、異常、維修四個子頁籤與完整歷史。  
+**獨立驗收測試**：選定一台設備，驗設備標頭、30 日圖表、不足 30 天說明、COP/pressure 缺欄位容錯、異常與工單分頁。
 
 ### 測試先行（US3）
 
-- [ ] T093 [US3] US3 整合測試：單機履歷主要成功路徑（GET /api/devices/:deviceId → 驗基本資訊欄位完整；GET /api/devices/:deviceId/power → 驗 dailySummary 陣列及安裝不足 30 天邊界；GET /api/devices/:deviceId/alerts + /work-orders → 驗分頁正確；AAA 模式；TDD：測試先於實作）→ `backend/tests/integration/deviceHistory.test.ts`
-- [ ] T103 [P] [US3] US3 前端單元測試：PowerChart / OperationChart / AlertTimeline / WorkOrderList 元件（Vitest；測試項目：安裝未滿 30 天顯示說明文字、COP supportsCoP=false 顯示「不適用」、resolutionNote 未解除顯示「—」、空狀態提示；覆蓋率 ≥ 80%；TDD：測試先於元件實作）→ `frontend/tests/unit/DeviceHistory/`
+- [ ] T066 [US3] 單機履歷整合測試（GET /api/devices/:deviceId、/power、/operation、/alerts、/work-orders；驗 404、安裝不足 30 天不補零、分頁、supportsCoP/supportsPressure 容錯；測試先於 T068-T072）→ `backend/tests/integration/deviceHistory.test.ts`
+- [ ] T067 [P] [US3] 單機履歷前端單元測試（DeviceInfoCard、PowerChart、OperationChart、AlertTimeline、WorkOrderList；驗「不適用」/「--」、resolutionNote、空狀態、PageStatusHeader）→ `frontend/tests/unit/DeviceHistory/`
 
 ### 後端實作（US3）
 
-- [ ] T054 [US3] 實作 `GET /api/devices/:deviceId` 路由（回傳 DeviceDetail 含 supportsCoP / supportsPressure；404 DEVICE_NOT_FOUND）→ `backend/src/routes/devices.ts`（附加）、`backend/src/services/deviceService.ts`（擴充）
-- [ ] T055 [P] [US3] 實作 `GET /api/devices/:deviceId/power` 路由（優先查 InfluxDB `energy_daily_summary`，mock 設備讀 JSON；回傳 dailySummary + realtimePower；安裝不足 30 天僅回傳有資料的日期，不補空值）→ `backend/src/routes/devices.ts`（附加）
-- [ ] T056 [P] [US3] 實作 `GET /api/devices/:deviceId/operation` 路由（查 `heatpump_daily_summary`；回傳 runHours、startupCount、avgCop；COP null 依 supportsCoP 標記處理）→ `backend/src/routes/devices.ts`（附加）
-- [ ] T057 [P] [US3] 實作 `GET /api/devices/:deviceId/alerts` 路由（MySQL alerts 表分頁查詢，依 occurred_at DESC；含 alertType、severity、occurredAt、resolvedAt、description、resolutionNote）→ `backend/src/routes/devices.ts`（附加）
-- [ ] T058 [P] [US3] 實作 `GET /api/devices/:deviceId/work-orders` 路由（MySQL work_orders 分頁查詢，依 dispatched_at DESC；含 woCode、status、assignedToName、dispatchedAt、completedAt、issueDesc、resolutionDesc）→ `backend/src/routes/devices.ts`（附加）
+- [ ] T068 [US3] 實作 GET /api/devices/:deviceId 與 DeviceDetail service（基本資訊、supportsCoP、supportsPressure、404 DEVICE_NOT_FOUND）→ `backend/src/routes/devices.ts`、`backend/src/services/deviceService.ts`
+- [ ] T069 [P] [US3] 實作 GET /api/devices/:deviceId/power（real 查 energy_daily_summary + device_meter_mappings/share_ratio；mock 讀 JSON；安裝不足 30 天僅回實際日期）→ `backend/src/routes/devices.ts`
+- [ ] T070 [P] [US3] 實作 GET /api/devices/:deviceId/operation（real 查 heatpump_daily_summary；mock 讀 JSON；COP null 依 supportsCoP 處理）→ `backend/src/routes/devices.ts`
+- [ ] T071 [P] [US3] 實作 GET /api/devices/:deviceId/alerts（MySQL alerts 分頁，依 occurred_at DESC；含 alertType、severity、description、resolutionNote）→ `backend/src/routes/devices.ts`
+- [ ] T072 [P] [US3] 實作 GET /api/devices/:deviceId/work-orders（MySQL work_orders 分頁，依 dispatched_at DESC；含 woCode、priority、status、assignedToName、issueDesc、resolutionDesc）→ `backend/src/routes/devices.ts`
 
 ### 前端實作（US3）
 
-- [ ] T059 [P] [US3] 建立 DeviceInfoCard 元件（設備頁頂部標頭：設備編號、型號、安裝日期、客戶、地點、StatusBadge；離線設備顯示最後心跳時間）→ `frontend/src/pages/DeviceHistory/DeviceInfoCard.tsx`
-- [ ] T060 [P] [US3] 建立 PowerChart 元件（ECharts 折線圖；X 軸日期；Y 軸 kWh；anomalyFlag=true 日期紅色標記；安裝不足 30 天附「資料期間：安裝日 ～ 今日（共 N 天）」說明文字）→ `frontend/src/pages/DeviceHistory/PowerChart.tsx`
-- [ ] T061 [P] [US3] 建立 OperationChart 元件（ECharts 雙 Y 軸圖；柱狀：每日開機次數；折線：COP 趨勢；supportsCoP=false 顯示「不適用」；cop=null + supportsCoP=true 顯示「--」）→ `frontend/src/pages/DeviceHistory/OperationChart.tsx`
-- [ ] T062 [P] [US3] 建立 AlertTimeline 元件（時間軸列表；顯示發生時間、異常類型 label、severity badge、描述、持續時間、解除方式（resolutionNote：resolved 狀態顯示解除方式文字、未解除顯示「—」）；空狀態提示）→ `frontend/src/pages/DeviceHistory/AlertTimeline.tsx`
-- [ ] T063 [P] [US3] 建立 WorkOrderList 元件（工單列表；欄位：工單號、優先級、指派技師、派工 / 完工時間、問題描述、處置方式；空狀態提示）→ `frontend/src/pages/DeviceHistory/WorkOrderList.tsx`
-- [ ] T064 [US3] 組裝 DeviceHistory 頁面（頂部 DeviceInfoCard + 四個子頁籤：用電紀錄 / 運轉紀錄 / 異常紀錄 / 維修紀錄；頁籤切換不重新取設備標頭）→ `frontend/src/pages/DeviceHistory/DeviceHistoryPage.tsx`
+- [ ] T073 [P] [US3] 建立 DeviceInfoCard 元件（設備編號、型號、安裝日期、客戶、地點、StatusBadge、最後心跳）→ `frontend/src/pages/DeviceHistory/DeviceInfoCard.tsx`
+- [ ] T074 [P] [US3] 建立 PowerChart 元件（ECharts 折線圖；kWh、異常值標記、不足 30 天資料期間說明）→ `frontend/src/pages/DeviceHistory/PowerChart.tsx`
+- [ ] T075 [P] [US3] 建立 OperationChart 元件（runHours/startupCount/COP；supportsCoP=false 顯示「不適用」；supportsCoP=true 且 null 顯示「--」）→ `frontend/src/pages/DeviceHistory/OperationChart.tsx`
+- [ ] T076 [P] [US3] 建立 AlertTimeline 元件（異常時間軸、severity badge、持續時間、解除方式、空狀態提示）→ `frontend/src/pages/DeviceHistory/AlertTimeline.tsx`
+- [ ] T077 [P] [US3] 建立 WorkOrderList 元件（工單號、優先級、技師、派工/完工時間、問題描述、處置方式、空狀態提示）→ `frontend/src/pages/DeviceHistory/WorkOrderList.tsx`
+- [ ] T078 [US3] 組裝 DeviceHistory 頁面（PageStatusHeader + DeviceInfoCard + 四子頁籤；頁籤切換不重抓標頭）→ `frontend/src/pages/DeviceHistory/DeviceHistoryPage.tsx`
 
-**檢查點**：US3 可獨立測試——四個子頁籤各自顯示正確資料；ECharts 圖表在深色主題下清晰
+**檢查點**：US3 可獨立驗收單台設備診斷流程。
 
 ---
 
 ## 第 7 階段：使用者故事 5 — 月報雛形（優先順序：P3）
 
-**目標**：維運主管可選擇月份查看設備健康摘要、異常統計、告警處理率，並匯出 PDF
-
-**獨立驗收測試**：選定 2026-04 月份 → 健康分數平均值、異常分類統計、告警處理率各數字正確；「匯出 PDF」可下載含圖表的 PDF 檔
+**目標**：維運主管可選月份查看設備健康摘要、異常統計、告警處理率，並匯出 PDF。  
+**獨立驗收測試**：選定月份後，驗健康分布、異常 Top 5、每日平均、告警處理率、逾時未處理、PDF 匯出與 5 分鐘內準備流程。
 
 ### 測試先行（US5）
 
-- [ ] T094 [US5] US5 整合測試：月報主要成功路徑（GET /api/reports/monthly?month=YYYY-MM → 驗健康分數平均值與分布、異常統計 Top 5 設備、告警處理率欄位；閏年及 28/30/31 日月份每日平均值計算正確；AAA 模式；TDD：測試先於實作）→ `backend/tests/integration/reports.test.ts`
-- [ ] T104 [P] [US5] US5 前端單元測試：MonthPicker / HealthSummaryChart / AnomalyBarChart / AlertRateCard / ExportPdfButton 元件（Vitest；測試項目：月份切換觸發重新取資料、PDF 匯出按鈕顯示載入中狀態、每日平均値計算渲染正確；覆蓋率 ≥ 80%；TDD：測試先於元件實作）→ `frontend/tests/unit/MonthlyReport/`
+- [ ] T079 [US5] 月報整合測試（GET /api/reports/monthly?month=YYYY-MM；驗健康平均與分布、異常 Top 5 同次數時 `device_code ASC`、28/29/30/31 天每日平均、ALERT_OVERDUE_HOURS 逾時計算、422 INVALID_MONTH；測試先於 T081/T082）→ `backend/tests/integration/reports.test.ts`
+- [ ] T080 [P] [US5] 月報前端單元測試（MonthPicker、HealthSummaryChart、AnomalyBarChart、AlertRateCard、ExportPdfButton；驗月份切換、每日平均、載入中、PDF 觸發、PageStatusHeader）→ `frontend/tests/unit/MonthlyReport/`
 
 ### 後端實作（US5）
 
-- [ ] T066 [US5] 實作 reportService.getMonthlyReport()（聚合 MySQL：健康分數分布、異常類型統計、Top 5 異常設備、告警處理率；各計數同時附 ÷ 實際天數每日平均值；正確處理閏年與各月天數差異）→ `backend/src/services/reportService.ts`
-- [ ] T067 [US5] 實作 `GET /api/reports/monthly` 路由（month=YYYY-MM 格式驗證；422 INVALID_MONTH；套用 authGuard；REPORT_CACHE_TTL 300s）→ `backend/src/routes/reports.ts`
+- [ ] T081 [US5] 實作 reportService.getMonthlyReport()（聚合健康分數、異常類型、Top 5 異常設備 tie-breaker、告警總數/已解除率/平均解除時間/逾時未處理；每日平均除以實際天數）→ `backend/src/services/reportService.ts`
+- [ ] T082 [US5] 實作 GET /api/reports/monthly 路由（month=YYYY-MM 驗證、authGuard、REPORT_CACHE_TTL=300、422 INVALID_MONTH）→ `backend/src/routes/reports.ts`
 
 ### 前端實作（US5）
 
-- [ ] T068 [P] [US5] 建立 MonthPicker 元件（月份選擇器；預設當月；選擇後觸發重新取資料）→ `frontend/src/pages/MonthlyReport/MonthPicker.tsx`
-- [ ] T069 [P] [US5] 建立 HealthSummaryChart 元件（ECharts 柱狀分布圖：90-100 / 70-89 / 50-69 / 0-49 各段設備數；顯示整體平均分）→ `frontend/src/pages/MonthlyReport/HealthSummaryChart.tsx`
-- [ ] T070 [P] [US5] 建立 AnomalyBarChart 元件（ECharts 水平長條圖；依異常類型分類；每類顯示月總量與每日平均值；列出 Top 5 異常設備清單）→ `frontend/src/pages/MonthlyReport/AnomalyBarChart.tsx`
-- [ ] T071 [P] [US5] 建立 AlertRateCard 元件（顯示：告警總數、已解除率 %、平均解除時間（小時）、逾時未處理數；各計數附每日平均值）→ `frontend/src/pages/MonthlyReport/AlertRateCard.tsx`
-- [ ] T072 [P] [US5] 建立 ExportPdfButton 元件（點擊後 html2canvas 截取 `#monthly-report` DOM；jsPDF 建立 A4 文件插入截圖；呼叫 `save('月報-YYYY-MM.pdf')` 觸發下載；期間顯示載入中狀態；≤ 30s 完成）→ `frontend/src/pages/MonthlyReport/ExportPdfButton.tsx`
-- [ ] T073 [US5] 組裝 MonthlyReport 頁面（頂部 MonthPicker + ExportPdfButton；主體 id=`monthly-report`，依序排列：HealthSummaryChart + AnomalyBarChart + AlertRateCard）→ `frontend/src/pages/MonthlyReport/MonthlyReportPage.tsx`
+- [ ] T083 [P] [US5] 建立 MonthPicker 元件（預設當月，切換後重新取資料）→ `frontend/src/pages/MonthlyReport/MonthPicker.tsx`
+- [ ] T084 [P] [US5] 建立 HealthSummaryChart 元件（90-100、70-89、50-69、0-49 分布與平均健康分）→ `frontend/src/pages/MonthlyReport/HealthSummaryChart.tsx`
+- [ ] T085 [P] [US5] 建立 AnomalyBarChart 元件（異常類型水平長條圖、月總量、每日平均、Top 5 設備清單）→ `frontend/src/pages/MonthlyReport/AnomalyBarChart.tsx`
+- [ ] T086 [P] [US5] 建立 AlertRateCard 元件（告警總數、已解除率、平均解除時間、逾時未處理數、每日平均）→ `frontend/src/pages/MonthlyReport/AlertRateCard.tsx`
+- [ ] T087 [P] [US5] 建立 ExportPdfButton 元件（html2canvas 截取 `#monthly-report`，jsPDF A4 輸出 `月報-YYYY-MM.pdf`，顯示載入狀態，目標 ≤30 秒）→ `frontend/src/pages/MonthlyReport/ExportPdfButton.tsx`
+- [ ] T088 [US5] 組裝 MonthlyReport 頁面（PageStatusHeader + MonthPicker + ExportPdfButton + `#monthly-report` 報表內容）→ `frontend/src/pages/MonthlyReport/MonthlyReportPage.tsx`
+- [ ] T089 [US5] 建立 SC-007 月報準備流程驗收記錄（從進入月報頁、選月份、確認圖表、匯出 PDF 至完成，目標 ≤5 分鐘）→ `docs/acceptance-sc007.md`
 
-**檢查點**：US5 可獨立測試——選擇月份後三個統計區塊正確顯示；PDF 匯出含所有圖表
+**檢查點**：US5 可獨立驗收月報查看與匯出。
 
 ---
 
 ## 第 8 階段：使用者故事 6 — 老闆決策頁（優先順序：P3）
 
-**目標**：公司高階主管可一頁掌握維運 KPI、技師負載、高風險客戶清單，及擴張承載能力評估
-
-**獨立驗收測試**：帶入維運負載與客戶風險資料 → KPI 卡片數值正確；`maxSafeAddDevices` 計算符合公式（totalMaxCapacity × 0.95 − currentDevices）
+**目標**：高階主管可一頁掌握維運 KPI、技師負載、高風險客戶與擴張承載能力。  
+**獨立驗收測試**：帶入維運負載與客戶風險資料，驗 KPI、負載、Top 5 客戶、產能試算公式與 5 分鐘決策目標。
 
 ### 測試先行（US6）
 
-- [ ] T095 [US6] US6 整合測試：老闆決策頁主要成功路徑（GET /api/executive/summary → 驗 kpi 欄位、technicianWorkload 長度符合技師人數、topRiskClients 恰好 5 筆；GET /api/executive/capacity?addDevices=10 → 驗 maxSafeAddDevices = totalMaxCapacity × 0.95 − currentDevices 公式正確；AAA 模式；TDD：測試先於實作）→ `backend/tests/integration/executive.test.ts`
-- [ ] T105 [P] [US6] US6 前端單元測試：KpiCard / WorkloadTable / RiskClientList / CapacityGauge 元件（Vitest；測試項目：KPI 數値格式化渲染、產能利用率進度條寬度計算、風險評級 badge 渲染、CapacityGauge 95% 安全線標示；覆蓋率 ≥ 80%；TDD：測試先於元件實作）→ `frontend/tests/unit/ExecutiveDashboard/`
+- [ ] T090 [US6] 老闆決策頁整合測試（GET /api/executive/summary 驗 KPI、technicianWorkload、topRiskClients；GET /api/executive/capacity?addDevices=10 驗 maxSafeAddDevices = totalMaxCapacity × 0.95 − currentDevices；測試先於 T092-T095）→ `backend/tests/integration/executive.test.ts`
+- [ ] T091 [P] [US6] 老闆決策頁前端單元測試（KpiCard、WorkloadTable、RiskClientList、CapacityGauge；驗數值格式、進度條、風險評級、95% 安全線、PageStatusHeader）→ `frontend/tests/unit/ExecutiveDashboard/`
 
 ### 後端實作（US6）
 
-- [ ] T074 [US6] 實作 executiveService（KPI 計算：totalDevices / totalTechnicians / avgDevicesPerTech；technicianWorkload：每位技師 activeWorkOrders + completedThisMonth + utilizationRate（公式：`activeWorkOrders / MAX_WORK_ORDERS_PER_TECH × 100`）；擴張承載能力：maxSafeAddDevices = totalMaxCapacity × 0.95 - currentDevices（totalMaxCapacity = totalTechnicians × `MAX_DEVICES_PER_TECH`）；兩個設定項分別從 system_settings 讀取）→ `backend/src/services/executiveService.ts`
-- [ ] T075 [US6] 實作 `GET /api/executive/summary` 路由（回傳 kpi + technicianWorkload + topRiskClients；套用 authGuard；TTL 300s）→ `backend/src/routes/executive.ts`
-- [ ] T076 [P] [US6] 實作 `GET /api/executive/capacity` 路由（接受 addDevices query param；計算 projectedUtilization + maxSafeAddDevices + capacityCurve 0/5/10/15/20 節點）→ `backend/src/routes/executive.ts`（附加）
-- [ ] T077 [P] [US6] 實作 `GET /api/risk/top-clients` 路由（Top 5 高風險客戶：clientName、deviceCount、alertCount、avgRiskScore、riskTier、suggestedAction）→ `backend/src/routes/risk.ts`（附加）
+- [ ] T092 [US6] 實作 executiveService（totalDevices、totalTechnicians、avgDevicesPerTech、activeWorkOrders、completedThisMonth、MAX_WORK_ORDERS_PER_TECH 利用率、MAX_DEVICES_PER_TECH 擴張承載能力）→ `backend/src/services/executiveService.ts`
+- [ ] T093 [US6] 實作 GET /api/executive/summary 路由（kpi、technicianWorkload、topRiskClients、authGuard、TTL 300s）→ `backend/src/routes/executive.ts`
+- [ ] T094 [P] [US6] 實作 GET /api/executive/capacity 路由（addDevices query、projectedUtilization、maxSafeAddDevices、capacityCurve 0/5/10/15/20）→ `backend/src/routes/executive.ts`
+- [ ] T095 [P] [US6] 實作 GET /api/risk/top-clients 路由（Top 5 高風險客戶、avgRiskScore、riskTier：≥70 高/40-69 中/<40 低、suggestedAction）→ `backend/src/routes/risk.ts`
 
 ### 前端實作（US6）
 
-- [ ] T078 [P] [US6] 建立 KpiCard 元件（三個核心 KPI 卡片：總設備數 / 維運人員數 / 每人平均設備數）→ `frontend/src/pages/ExecutiveDashboard/KpiCard.tsx`
-- [ ] T079 [P] [US6] 建立 WorkloadTable 元件（每位技師：姓名、當前工單數、本月完成工單數、產能利用率進度條）→ `frontend/src/pages/ExecutiveDashboard/WorkloadTable.tsx`
-- [ ] T080 [P] [US6] 建立 RiskClientList 元件（Top 5 高風險客戶：名稱、設備數、本月異常次數、風險評級 badge、建議行動）→ `frontend/src/pages/ExecutiveDashboard/RiskClientList.tsx`
-- [ ] T081 [P] [US6] 建立 CapacityGauge 元件（ECharts 半圓儀表：目前產能利用率；折線圖：新增設備後預估負載曲線；標示 95% 安全承接上限）→ `frontend/src/pages/ExecutiveDashboard/CapacityGauge.tsx`
-- [ ] T082 [US6] 組裝 ExecutiveDashboard 頁面（頂部 KpiCard × 3；中段 WorkloadTable + RiskClientList；底部 CapacityGauge + addDevices 試算輸入框）→ `frontend/src/pages/ExecutiveDashboard/ExecutiveDashboardPage.tsx`
+- [ ] T096 [P] [US6] 建立 KpiCard 元件（三個 KPI：總設備數、維運人員數、每人平均設備數）→ `frontend/src/pages/ExecutiveDashboard/KpiCard.tsx`
+- [ ] T097 [P] [US6] 建立 WorkloadTable 元件（技師姓名、當前工單、本月完工、產能利用率進度條）→ `frontend/src/pages/ExecutiveDashboard/WorkloadTable.tsx`
+- [ ] T098 [P] [US6] 建立 RiskClientList 元件（Top 5 客戶、設備數、本月異常、風險評級、建議行動）→ `frontend/src/pages/ExecutiveDashboard/RiskClientList.tsx`
+- [ ] T099 [P] [US6] 建立 CapacityGauge 元件（ECharts 半圓儀表、擴張負載曲線、95% 安全承接線）→ `frontend/src/pages/ExecutiveDashboard/CapacityGauge.tsx`
+- [ ] T100 [US6] 組裝 ExecutiveDashboard 頁面（PageStatusHeader + KPI 卡片 + WorkloadTable + RiskClientList + CapacityGauge + addDevices 試算輸入）→ `frontend/src/pages/ExecutiveDashboard/ExecutiveDashboardPage.tsx`
+- [ ] T101 [US6] 建立 SC-005 決策流程驗收記錄（業務背景測試者從進入頁面到完成是否承接 N 台設備判斷，目標 ≤5 分鐘）→ `docs/acceptance-sc005.md`
 
-**檢查點**：US6 可獨立測試——三個核心區塊正確顯示；產能試算邏輯符合公式
+**檢查點**：US6 可獨立驗收管理決策頁。
 
 ---
 
 ## 第 9 階段：收尾與橫切面
 
-**目標**：效能優化、過期資料提示、風險規則管理端點、全端整合驗證
+**目標**：快取、風險規則管理、安全、效能、覆蓋率、無障礙、CI/CD、staging 與 quickstart 驗證。
 
-- [ ] T083 實作後端 API 回應快取 HTTP 標頭中介軟體（設定 `Cache-Control` 標頭供瀏覽器 / CDN 使用：設備列表 25s、月報與歷史資料 300s；**注意**：此中介軟體僅負責 HTTP 標頭層快取；各 service 層已獨立使用 node-cache 作為伺服器端記憶體快取（T030 25s / T037 10s / T049 5min / T067 300s），兩層職責不同、互不衝突）→ `backend/src/middleware/cache.ts`
-- [ ] T084 [P] 實作前端過期資料偵測工具函式（比較回應時間戳與現在時間；超過 TTL 顯示「資料可能過期」標籤；快取值保留至 API 恢復）→ `frontend/src/utils/staleDataHelper.ts`
-- [ ] T085 [P] 實作 `GET /api/risk/rules` 與 `PUT /api/risk/rules` 端點（PUT 驗證啟用規則 weight 加總 = 100；422 INVALID_WEIGHT_SUM：「啟用的權重加總必須等於 100，目前為 N」）→ `backend/src/routes/risk.ts`（附加）
-- [ ] T086 [P] 確認深色主題一致性（全部 6 頁使用 Tailwind 設計 Token；ECharts 圖表設定深色背景 + 高對比色；WCAG 2.1 AA 對比度驗證）
-- [ ] T087 [P] 確認離線設備跨頁一致顯示（即時數值欄位顯示「--」；StatusBadge 灰色；附最後心跳時間戳；跨 DeviceList、AlertCenter、RiskRanking 一致）
-- [ ] T088 [P] 對全專案執行 ESLint + Prettier 最終校正（frontend/ + backend/；確認 Constitution I 通過）
-- [ ] T096 [P] 建立 CI 效能基準測試腳本（`GET /api/devices` p95 ≤500ms + `GET /api/alerts` p95 ≤500ms + `GET /api/risk/top-devices` 快取冷啟動 p95 ≤500ms + `GET /api/reports/monthly` 快取冷啟動 p95 ≤500ms + `GET /api/executive/summary` 快取冷啟動 p95 ≤500ms；採用 Autocannon 腳本於 local Docker 環境執行；整合至 CI pipeline，PR 觸發條件：修改 routes/devices.ts、routes/alerts.ts、routes/risk.ts、routes/reports.ts 或 routes/executive.ts；確認 Constitution IV 合規）→ `backend/tests/performance/benchmark.ts`、`.github/workflows/perf.yml`
-- [ ] T097 [P] 驗收告警中心 SC-004 效能（80 筆告警下頁面載入 ≤3 秒）：seed 80 筆 mock 告警，Supertest 量測 `GET /api/alerts?limit=50` p95 ≤500ms；確認 node-cache TTL 10s 快取命中；人工驗收前端 AlertCenter 首次載入達標，記錄截圖至 `docs/perf-sc004.png` → `backend/tests/performance/alertCenter.perf.ts`
-- [ ] T098 [P] 驗收月報 PDF SC-003 效能（SC-003：PDF 產生 ≤30 秒）：於前端開發環境以計時腳本截取完整 `#monthly-report` DOM 並量測 `jsPDF.save()` 完成時間；若平均超過 30s，分析 html2canvas 渲染瓶頸（imageQuality 調整、圖層拆分）；人工驗收後記錄截圖至 `docs/perf-sc003.png` → `frontend/src/utils/pdfPerfTest.ts`
-- [ ] T099 [P] 驗證前後端測試覆蓋率達標（Constitution II）：**前置條件：T100–T105 前端單元測試任務須已完成**；前端執行 `vitest run --coverage` 驗證各模組覆蓋率 ≥ 80%；後端執行 `jest --coverage --coverageThreshold` 驗證相同門櫛；CI pipeline（`.github/workflows/ci.yml`）整合覆蓋率閥値檢查，低於門櫛則阻斷 PR 合並；輸出 lcov 格式報告 → `frontend/vite.config.ts`（coverage 設定）、`backend/jest.config.ts`（coverageThreshold）、`.github/workflows/ci.yml`
-- [ ] T108 [P] 執行 WCAG 2.1 AA 無障礙合規審查（Constitution III MUST：所有新 UI 元件須符合 WCAG 2.1 AA 最低標準）：於前端 Vitest 環境以 `jest-axe` 對 StatusBadge、AlertBanner、DeviceTable、AlertTable、RiskTable 及各頁面主要元件執行 axe 規則掃描；所有 axe 違規項目須歸零後方可合並 PR；人工補驗鍵盤導航（Tab / Enter / Esc）與螢幕閱讀器焦點順序；確認主要文字顏色對比率達 AA 標準（≥ 4.5:1）→ `frontend/tests/accessibility/`
-- [ ] T109 [P] 執行使用者工作流程可用性審查（Constitution III MUST：所有使用者介面工作流程須於上線前完成至少一次可用性審查）：依 spec.md US1–US6 的驗收情境逐一人工走查六頁工作流程；審查項目包含導覽列切換流暢性、告警指派三步驟流程（SC-002）、月份切換重新載入回應、PDF 匯出完整性；審查結果（通過 / 待改善）記錄至 `docs/ux-review.md`；有待改善項目須於 PR 合並前修正或建立追蹤 Issue
-- [ ] T110 [P] 驗收老闆決策頁 SC-005（主管可在 5 分鐘內做出是否承接新客戶的決策）：帶入維運負載與客戶風險模擬資料，由一名具業務背景的測試者進入老闆決策頁，計時從進入頁面至完成「是否可承接 N 台新設備」判斷的總時間；目標 ≤ 5 分鐘；若未達標，識別資訊呈現瓶頸並建立改善 Issue；驗收結果記錄至 `docs/acceptance-sc005.md`
-- [ ] T112 [P] 建立完整 PR CI workflow（每個 pull request 必須執行 frontend/backend lint、unit tests、integration tests、coverage threshold、build；任一失敗阻擋合併；確認 Constitution 品質閘門與 CI/CD 要求合規）→ `.github/workflows/ci.yml`
-- [ ] T113 [P] 建立前端 UI render p95 效能基準（針對 DeviceListPage、AlertCenterPage、RiskRankingPage、MonthlyReportPage、ExecutiveDashboardPage，在測試資料下量測首次 render 與互動後 render p95 ≤500ms；整合至 PR CI 或 perf workflow）→ `frontend/tests/performance/render.benchmark.ts`、`.github/workflows/perf.yml`
-- [ ] T114 建立 staging 部署驗證流程（production release 前必須完成 staging deployment；包含 docker compose smoke test、健康檢查、登入、六頁主要路由與 API health 驗證；失敗不得發布）→ `.github/workflows/staging.yml`、`docs/staging-release-checklist.md`
-- [ ] T115 [P] 補齊安全強化與驗證（Nginx `Content-Security-Policy`、`X-Frame-Options: DENY`、`X-Content-Type-Options: nosniff`；Fastify CORS 僅允許 `ALLOWED_ORIGIN`；JWT_SECRET 長度至少 64 字元；cookie `httpOnly` + `SameSite=Lax`；bcrypt cost=12；登入限流與防帳號枚舉測試）→ `docker/nginx/default.conf`、`backend/src/app.ts`、`backend/src/routes/auth.ts`、`backend/tests/integration/security.test.ts`
-- [ ] T089 驗證 Docker Compose 全端整合啟動（nginx 代理、前後端連線、健康檢查端點回應 healthy）→ `docker/docker-compose.yml`
+- [ ] T102 [P] 快取 HTTP 標頭中介軟體測試（驗設備列表 25s、月報/歷史資料 300s、風險/老闆頁 300s；不取代 service 層 node-cache；測試先於 T103）→ `backend/tests/unit/middleware/cache.test.ts`
+- [ ] T103 實作後端 API Cache-Control 中介軟體（依路由設定快取標頭，與 node-cache 職責分離）→ `backend/src/middleware/cache.ts`
+- [ ] T104 [P] 風險規則 API 整合測試（GET /api/risk/rules；PUT /api/risk/rules 驗啟用權重加總 = 100，否則 422 INVALID_WEIGHT_SUM；測試先於 T105）→ `backend/tests/integration/riskRules.test.ts`
+- [ ] T105 [P] 實作 GET/PUT /api/risk/rules 端點（讀寫 risk_score_weights，繁中錯誤訊息，authGuard）→ `backend/src/routes/risk.ts`
+- [ ] T106 [P] 建立深色主題與圖表對比自動檢查（Tailwind token、ECharts 背景與高對比色、狀態色語意一致）→ `frontend/tests/accessibility/theme-contrast.test.ts`
+- [ ] T107 [P] 建立離線與 stale 資料跨頁一致性整合測試（DeviceList、AlertCenter、RiskRanking、DeviceHistory、MonthlyReport、ExecutiveDashboard 均顯示 PageStatusHeader 與「資料可能過期」）→ `frontend/tests/integration/stale-data.test.ts`
+- [ ] T108 [P] 建立 lint/format 最終驗證報告產生腳本（frontend/backend ESLint + Prettier；零錯誤，必要 suppression 必須有註解）→ `scripts/quality-check.sh`、`docs/lint-report.md`
+- [ ] T109 [P] 建立 API 效能基準（k6：GET /api/devices、/api/alerts、/api/risk/top-devices、/api/reports/monthly、/api/executive/summary p95 ≤500ms；整合 CI）→ `backend/tests/performance/api.k6.ts`、`.github/workflows/perf.yml`
+- [ ] T110 [P] 建立告警中心 SC-004 效能驗收（80 筆告警、GET /api/alerts?limit=50 p95 ≤500ms、前端頁面載入 ≤3 秒，截圖/結果入文件）→ `backend/tests/performance/alertCenter.perf.ts`、`docs/perf-sc004.md`
+- [ ] T111 [P] 建立月報 PDF SC-003 效能驗收（量測 html2canvas + jsPDF save 完成時間 ≤30 秒，記錄瓶頸與截圖）→ `frontend/src/utils/pdfPerfTest.ts`、`docs/perf-sc003.md`
+- [ ] T112 [P] 建立測試覆蓋率 gate（前端 Vitest coverage、後端 Jest coverageThreshold；修改模組 ≥80%，輸出 lcov）→ `frontend/vite.config.ts`、`backend/jest.config.ts`、`.github/workflows/ci.yml`
+- [ ] T113 [P] 建立 WCAG 2.1 AA 無障礙測試（jest-axe 掃描 StatusBadge、AlertBanner、DeviceTable、AlertTable、RiskTable 與六頁主要元件；axe 違規歸零）→ `frontend/tests/accessibility/`
+- [ ] T114 [P] 建立使用者工作流程可用性審查文件（逐一走查 US1–US6、導覽、告警三步驟、月報匯出、決策頁；待改善項須列入追蹤）→ `docs/ux-review.md`
+- [ ] T115 [P] 建立完整 PR CI workflow（frontend/backend lint、unit、integration、coverage、build、critical path benchmark；任一失敗阻擋合併）→ `.github/workflows/ci.yml`
+- [ ] T116 [P] 建立前端 render 與 bundle 預算基準（六頁首次 render/互動後 render p95 ≤500ms；gzip bundle ≤2MB）→ `frontend/tests/performance/render.benchmark.ts`、`frontend/tests/performance/bundle-budget.test.ts`
+- [ ] T117 [P] 建立後端資源預算與輪詢壓測（後端記憶體 ≤512MB、10 並發 30 秒輪詢 CPU <50%、無記憶體洩漏；整合 perf workflow）→ `backend/tests/performance/resource-budget.k6.ts`、`docs/perf-resource-budget.md`
+- [ ] T118 建立 staging 部署驗證流程（production 前必須 staging；docker compose smoke test、health、登入、六頁主要路由、API health）→ `.github/workflows/staging.yml`、`docs/staging-release-checklist.md`
+- [ ] T119 [P] 補齊安全強化與驗證（Nginx CSP/X-Frame-Options/X-Content-Type-Options；CORS 僅 ALLOWED_ORIGIN；JWT_SECRET ≥64；cookie httpOnly/SameSite=Lax；登入限流與防帳號枚舉測試）→ `docker/nginx/default.conf`、`backend/src/app.ts`、`backend/tests/integration/security.test.ts`
+- [ ] T120 驗證 Docker Compose 全端整合啟動（nginx 代理、前後端連線、健康檢查、登入與主要路由 smoke test）→ `docker/docker-compose.yml`、`docs/docker-smoke-test.md`
+- [ ] T121 [P] 執行 quickstart.md 驗證並修正驗證紀錄（本機啟動、migration、seed、前後端測試、Docker Compose、常見問題命令可執行；結果以繁中記錄）→ `specs/001-heatpump-dashboard-6pages/quickstart.md`、`docs/quickstart-validation.md`
+- [ ] T122 [P] 同步最終規格追溯矩陣（FR-001～FR-036、SC-001～SC-007 對應任務 ID；供 PR 描述引用）→ `docs/spec-traceability.md`
 
 ---
 
 ## 依賴關係圖
 
-```
+```text
 第 1 階段（專案建置）
-    └── 第 2 階段（基礎設施：DB Schema + Auth + React 骨架）
+    └── 第 2 階段（基礎設施：DB Schema + Auth + React 骨架 + real/mock 資料來源）
             ├── 第 3 階段（US1 設備總覽 P1）🎯 MVP
             ├── 第 4 階段（US4 告警中心 P1）
-            │       └─ alertService 使用 devices 表做設備存在驗證
             ├── 第 5 階段（US2 風險排序 P2）
-            │       └─ riskScoreService 依賴 alerts + work_orders 資料
             ├── 第 6 階段（US3 單機履歷 P2）
-            │       └─ device routes 共用同一 Router 檔（devices.ts）
             ├── 第 7 階段（US5 月報雛形 P3）
-            │       └─ reportService 聚合 alerts + devices 月度資料
             └── 第 8 階段（US6 老闆決策頁 P3）
-                    └─ executiveService 依賴 work_orders + riskScoreService
 
-第 9 階段（收尾）
-    └─ 依賴所有前序階段完成後整合
+第 9 階段（收尾與橫切面）
+    └── 依賴要納入 release 的故事完成後執行
 ```
 
-### 各故事可平行執行示範
+### 使用者故事依賴
 
-- **第 3 + 第 4 階段可同時進行**：後端各自獨立 service，前端各自獨立 page 目錄
-- **第 5 + 第 6 階段可同時進行**：riskScoreService 與 deviceHistory routes 互不依賴
-- **第 7 + 第 8 階段可同時進行**：reportService 與 executiveService 互不依賴
+- **US1 設備總覽（P1）**：第 2 階段後可開始；MVP 最小可展示範圍。
+- **US4 告警中心（P1）**：第 2 階段後可開始；依 devices/technicians/alerts schema，但不依賴 US1 前端。
+- **US2 風險排序（P2）**：第 2 階段後可開始；依 alerts、work_orders、risk_score_weights 與 daily summary/mock 能耗資料。
+- **US3 單機履歷（P2）**：第 2 階段後可開始；依 devices routes、Influx queries、mock loader。
+- **US5 月報雛形（P3）**：第 2 階段後可開始；依 reportService 聚合 alerts/devices/risk_score。
+- **US6 老闆決策頁（P3）**：第 2 階段後可開始；依 executiveService、work_orders、risk top clients。
+
+### 平行執行範例
+
+- **Setup**：T002、T003、T004、T005、T006 可平行。
+- **基礎設施**：T009、T010、T011、T016、T017、T019、T021、T023、T025～T028、T030～T034 可在不同檔案平行。
+- **P1 故事**：US1（T035～T043）與 US4（T044～T056）可由不同人同時推進。
+- **P2 故事**：US2（T057～T065）與 US3（T066～T078）可平行，但共用 `backend/src/routes/devices.ts` 的 US3 任務需協調。
+- **P3 故事**：US5（T079～T089）與 US6（T090～T101）可平行。
+- **收尾**：T102、T104、T106～T117、T119、T121、T122 多數可平行；T118/T120 建議在 Docker 與 CI 初步完成後執行。
 
 ---
 
 ## 實作策略
 
-### MVP 建議範圍（第 1 ～ 第 3 階段）
+### MVP 優先
 
-| 里程碑 | 交付內容 | 累計任務數 |
-|--------|----------|-----------|
-| M1 MVP | 登入 + 設備總覽 | 41 個任務（第 1–3 階段）|
-| M2 P1 完成 | + 告警中心 | 54 個任務（+ 第 4 階段）|
-| M3 P2 完成 | + 風險排序 + 單機履歷 | 76 個任務（+ 第 5–6 階段）|
-| M4 全功能 | + 月報 + 老闆決策頁 + 收尾 | 115 個任務（+ 第 7–9 階段）|
+1. 完成第 1 階段：專案建置（T001～T006）。
+2. 完成第 2 階段：基礎設施（T007～T034）。
+3. 完成第 3 階段：US1 設備總覽（T035～T043）。
+4. 停下來驗收：登入後設備總覽可顯示 7 real + 73 mock 的 80 台設備、篩選/搜尋/導向可用、SC-001 達標。
 
-### 漸進式交付原則
+### 漸進式交付
 
-1. **MVP 優先**：第 1 + 2 + 3 階段（US1 設備總覽）即可完成第一個可展示增量
-2. **P1 衝刺**：加入 US4（告警中心），系統具備維運核心功能
-3. **P2 擴充**：加入 US2 + US3，強化診斷能力（風險排序 + 單機履歷）
-4. **P3 完整**：加入 US5 + US6，完成報告與策略層功能
-5. **品質保證**：Constitution II 要求 TDD 用於 API handler 與風險分數計算；各使用者故事階段均設有「測試先行」任務，必須先確認失敗再實作
+| 里程碑 | 交付內容 | 任務範圍 |
+|--------|----------|----------|
+| M1 MVP | 登入 + 設備總覽 | T001～T043 |
+| M2 P1 完成 | + 告警中心 | T044～T056 |
+| M3 P2 完成 | + 風險排序 + 單機履歷 | T057～T078 |
+| M4 全功能 | + 月報 + 老闆決策頁 | T079～T101 |
+| Release Gate | 品質、安全、效能、staging | T102～T122 |
+
+### 品質閘門
+
+- 每個故事的測試任務必須先完成並確認失敗。
+- 所有新增/修改模組覆蓋率 ≥ 80%。
+- API p95 與主要 UI render p95 必須 ≤500ms。
+- 告警中心 80 筆告警頁面載入 ≤3 秒。
+- 月報 PDF 產生 ≤30 秒，月報準備流程 ≤5 分鐘。
+- 後端記憶體 ≤512MB，前端 gzip bundle ≤2MB。
+- 所有使用者可見文字與文件維持繁體中文（zh-TW）。
 
 ---
 
 ## 任務計數摘要
 
 | 階段 | 任務數 | 說明 |
-|-------|--------|------|
-| 第 1 階段：專案建置 | 6（T001–T006）| 專案初始化 |
-| 第 2 階段：基礎設施 | 26（T007–T029、T065、T106、T107）| 後端 + 前端基礎建設 + Auth + 認證整合測試 + 每日彙總工作 |
-| 第 3 階段：US1 設備總覽 | 9（T030–T036、T090、T100）| P1 🎯 MVP |
-| 第 4 階段：US4 告警中心 | 13（T037–T047、T091、T101）| P1 |
-| 第 5 階段：US2 風險排序 | 9（T048–T053、T092、T102、T111）| P2 |
-| 第 6 階段：US3 單機履歷 | 13（T054–T064、T093、T103）| P2 |
-| 第 7 階段：US5 月報雛形 | 10（T066–T073、T094、T104）| P3 |
-| 第 8 階段：US6 老闆決策頁 | 11（T074–T082、T095、T105）| P3 |
-| 第 9 階段：收尾 | 18（T083–T089、T096–T099、T108–T110、T112–T115）| 收尾 |
-| **合計** | **115** | |
+|------|--------|------|
+| 第 1 階段：專案建置 | 6 | T001～T006 |
+| 第 2 階段：基礎設施 | 28 | T007～T034 |
+| 第 3 階段：US1 設備總覽 | 9 | T035～T043 |
+| 第 4 階段：US4 告警中心 | 13 | T044～T056 |
+| 第 5 階段：US2 風險排序 | 9 | T057～T065 |
+| 第 6 階段：US3 單機履歷 | 13 | T066～T078 |
+| 第 7 階段：US5 月報雛形 | 11 | T079～T089 |
+| 第 8 階段：US6 老闆決策頁 | 12 | T090～T101 |
+| 第 9 階段：收尾與橫切面 | 21 | T102～T122 |
+| **合計** | **122** | |
 
-**平行機會**：115 個任務中，標記 [P] 的任務共 **58 個**，可大幅縮短實際開發時程。
-
-**建議 MVP 範圍**：第 1 + 第 2 + 第 3 階段（T001–T036、T065、T106、T107、T090、T100），共 41 個任務，交付設備總覽核心功能。
+**平行機會**：標記 [P] 的任務可在不同檔案與不互相依賴時平行執行。  
+**建議 MVP 範圍**：T001～T043，交付登入、共用基礎、real/mock 混合設備總覽。
