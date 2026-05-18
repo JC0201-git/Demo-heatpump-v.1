@@ -219,7 +219,7 @@ WHERE "device_id" = 'DEV-001'
 |---------|------|
 | Express vs Fastify | **Fastify 4** |
 | InfluxDB client | **`influx` npm 套件（1.x 相容）** |
-| SQL Server ORM | **Drizzle ORM** |
+| MySQL ORM | **Drizzle ORM** |
 | JWT vs Session | **JWT + httpOnly cookie** |
 | PDF 匯出 | **jsPDF + html2canvas（純前端）** |
 | 狀態管理 | **Zustand** |

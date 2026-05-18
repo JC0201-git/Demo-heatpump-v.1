@@ -110,7 +110,7 @@ curl http://localhost:3001/api/system/health
 
 ## 四、使用 Docker Compose 啟動完整環境
 
-> 適用於 Demo 展示或 EC2 A 部署，InfluxDB 與 SQL Server 仍為 EC2 B 上的現有服務。
+> 適用於 Demo 展示或 EC2 A 部署，InfluxDB 與 MySQL 仍為 EC2 B 上的現有服務。
 
 ```bash
 cd docker
@@ -133,12 +133,12 @@ docker compose down
 | 服務 | 容器埠 | 對外埠 |
 |------|--------|--------|
 | nginx | 80 | 80 |
-| frontend (Vite build) | 3000 | — (nginx 反代) |
+| frontend (production build) | 80 | — (nginx 反代) |
 | backend-api | 3001 | — (nginx 反代) |
 
 **Nginx 路由規則**：
 - `/api/*` → `backend-api:3001`
-- `/*` → `frontend:3000`（React SPA）
+- `/*` → `frontend:80`（React SPA）
 
 ---
 
@@ -221,9 +221,9 @@ cd backend && npm run test:coverage
 
 ## 八、常見問題排除
 
-### Q: 後端啟動時出現 `SQL Server connection failed`
+### Q: 後端啟動時出現 `MySQL connection failed`
 
-確認 `SQLSERVER_HOST` 設定為 EC2 B 的 VPC 私有 IP（不是公有 IP），且 EC2 B Security Group 允許 EC2 A 的 CIDR 存取 1433 埠。
+確認 `MYSQL_HOST` 設定為 EC2 B 的 VPC 私有 IP（不是公有 IP），且 EC2 B Security Group 允許 EC2 A 的 Security Group 或私有 IP 存取 3306 埠。
 
 ### Q: InfluxDB 查詢返回空資料
 

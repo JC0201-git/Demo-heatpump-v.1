@@ -126,7 +126,7 @@
 | `operator` | Field（String）| 操作人員（若有）|
 | `alarm_code` | Field（String）| 相關告警代碼（若有）|
 
-**Demo 階段替代方案**：異常事件時間軸使用 SQL Server `alerts` 表資料顯示
+**Demo 階段替代方案**：異常事件時間軸使用 MySQL `alerts` 表資料顯示
 
 ---
 

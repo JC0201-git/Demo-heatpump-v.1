@@ -22,7 +22,7 @@
    - 依風險分數 0–100 降序排列
    - 顯示排名、設備編號、客戶名稱、風險分數、風險主因、建議行動
    - 顯示排名變動方向
-   - 風險分數公式需支援 SQL Server 設定表調整權重，並能配合業務方後續提供公式進行調整
+   - 風險分數公式需支援 MySQL 設定表調整權重，並能配合業務方後續提供公式進行調整
 
 3. 單機履歷
    - 顯示設備基本資訊：設備編號、型號、安裝日期、客戶、地點、狀態
@@ -38,7 +38,7 @@
 
 4. 告警中心
    - v1 為「顯示型告警中心」
-   - 告警資料主要來自 SQL Server Express
+   - 告警資料主要來自 MySQL 8.0
    - 支援告警列表、狀態篩選、異常類型篩選
    - 支援指派負責人
    - 支援更新告警狀態為已解除
@@ -72,16 +72,16 @@
    - 頁面頂部顯示最後資料更新時間
    - 桌面瀏覽器為主，最低支援 1280px 以上解析度
    - 本版本不需手機版
-   - 前端不得直接連接 InfluxDB 或 SQL Server，必須透過後端 API Server
+   - 前端不得直接連接 InfluxDB 或 MySQL，必須透過後端 API Server
 
 2. 後端
    - Node.js + TypeScript API Server
    - 可使用 Express 或 Fastify，請在 Plan 中評估並選擇一個適合本案的方案
-   - 後端 API Server 部署於與 InfluxDB / SQL Server Express 相同的 AWS EC2 主機
+   - 後端 API Server 部署於與 InfluxDB / MySQL 8.0 相同的 AWS EC2 主機
    - 後端負責：
      a. 對前端提供統一 REST API
      b. 查詢 InfluxDB 1.8 的時序資料
-     c. 查詢與更新 SQL Server Express 的管理資料
+     c. 查詢與更新 MySQL 8.0 的管理資料
      d. 整合真實資料與 Mock 資料
      e. 提供風險分數計算
      f. 提供告警中心狀態更新
@@ -90,7 +90,7 @@
 
 3. 資料庫
    - InfluxDB 版本為 1.8
-   - SQL Server Express 與 InfluxDB 位於同一台 AWS EC2 Ubuntu 主機
+   - MySQL 8.0 與 InfluxDB 位於同一台 AWS EC2 Ubuntu 主機
    - Dashboard 前端位於另一台 AWS EC2 Ubuntu 主機
    - Dashboard 與後端 / 資料庫位於不同主機
    - 請在 Plan 中納入跨 EC2 連線、API 安全、CORS、防火牆與環境變數設定
@@ -101,7 +101,7 @@
      a. frontend
      b. backend-api
      c. reverse-proxy，如需要可用 Nginx
-   - InfluxDB 與 SQL Server Express 目前已存在，可不一定納入同一份 Docker Compose，但需說明連線方式
+   - InfluxDB 與 MySQL 8.0 目前已存在，可不一定納入同一份 Docker Compose，但需說明連線方式
    - 請規劃 Demo 部署方式與 MVP 升級方式
 
 三、資料來源策略
@@ -110,8 +110,8 @@
 
 - 7 台設備使用真實後端 API / InfluxDB 資料
 - 73 台設備使用靜態 Mock JSON 模擬資料
-- 80 台設備都必須建立於 SQL Server 的設備主檔中
-- SQL Server devices 表需以 data_source_type 區分 real / mock
+- 80 台設備都必須建立於 MySQL 的設備主檔中
+- MySQL devices 表需以 data_source_type 區分 real / mock
 - Demo 階段仍維持 7 台真實資料 + 73 台 Mock JSON
 - 但架構需支援未來逐步把 mock 設備轉換成 real 設備
 
@@ -150,9 +150,9 @@
    - 請在 Plan 中提出建議 measurement，例如 operation_log、energy_daily_summary、heatpump_daily_summary 等
    - 但請清楚區分哪些是必要、哪些是建議、哪些可延後到 MVP
 
-五、SQL Server Express 資料模型
+五、MySQL 8.0 資料模型
 
-SQL Server Express 用於管理資料與告警資料，請至少規劃以下資料表：
+MySQL 8.0 用於管理資料與告警資料，請至少規劃以下資料表：
 
 1. clients
    - 客戶資料
@@ -181,7 +181,7 @@ SQL Server Express 用於管理資料與告警資料，請至少規劃以下資�
 
 6. alerts
    - 告警資料
-   - v1 由 SQL Server 既有告警資料驅動畫面
+   - v1 由 MySQL 既有告警資料驅動畫面
    - 欄位包含 alert_id、device_id、alert_type、severity、occurred_at、status、assigned_to、assigned_at、resolved_at、description
 
 7. work_orders
@@ -195,7 +195,7 @@ SQL Server Express 用於管理資料與告警資料，請至少規劃以下資�
 9. users
    - 登入帳號資料
    - v1 需要多帳號登入
-   - 帳號資料存於 SQL Server
+   - 帳號資料存於 MySQL
    - 保留 role 欄位，但 v1 不啟用角色權限控管
    - 未來可支援 engineer、manager、owner、admin 等角色
 
@@ -205,7 +205,7 @@ SQL Server Express 用於管理資料與告警資料，請至少規劃以下資�
 
 11. risk_score_rules / risk_score_weights
    - 風險分數權重設定
-   - 風險分數需可由 SQL Server 設定表調整
+   - 風險分數需可由 MySQL 設定表調整
    - 需能配合業務方提供公式後調整
    - 請在 Plan 中提出 v1 簡化公式與未來可擴充方式
 
@@ -214,7 +214,7 @@ SQL Server Express 用於管理資料與告警資料，請至少規劃以下資�
 請規劃 v1 簡單登入：
 
 - 多帳號登入
-- 帳號資料存於 SQL Server
+- 帳號資料存於 MySQL
 - 密碼需雜湊儲存
 - 可使用 JWT 或 session，請在 Plan 中提出建議
 - users 表需保留 role 欄位
@@ -292,14 +292,14 @@ SQL Server Express 用於管理資料與告警資料，請至少規劃以下資�
 
 請注意：
 - 風險分數範圍為 0–100
-- 權重需存於 SQL Server 設定表
+- 權重需存於 MySQL 設定表
 - 業務方後續提供公式後，系統需可調整
 - Plan 中請清楚說明 Demo 版本公式與 MVP 版本公式的差異
 
 十、告警演進規劃
 
 v1：
-- 告警資料由 SQL Server 提供
+- 告警資料由 MySQL 提供
 - 系統主要負責顯示、篩選、指派、解除
 
 MVP / v2：
@@ -312,7 +312,7 @@ MVP / v2：
 
 請規劃資料來源抽象層：
 
-- real 設備：從 InfluxDB / SQL Server 讀取資料
+- real 設備：從 InfluxDB / MySQL 讀取資料
 - mock 設備：從靜態 Mock JSON 讀取資料
 - API response 格式需一致
 - 前端不應知道資料來自 real 或 mock
@@ -331,7 +331,7 @@ MVP / v2：
 
 2. 後端測試
    - API 單元測試
-   - SQL Server 查詢測試
+   - MySQL 查詢測試
    - InfluxDB 查詢測試
    - Mock / real 資料來源切換測試
 
@@ -358,7 +358,7 @@ MVP / v2：
 3. 前端架構規劃
 4. 後端 API 架構規劃
 5. InfluxDB 1.8 資料模型建議
-6. SQL Server Express 資料表設計
+6. MySQL 8.0 資料表設計
 7. 熱泵設備與電錶 mapping 設計
 8. API endpoint 規劃
 9. 登入與安全性規劃

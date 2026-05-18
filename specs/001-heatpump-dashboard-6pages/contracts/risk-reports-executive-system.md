@@ -331,7 +331,7 @@ maxSafeAddDevices = totalMaxCapacity × 0.95 - currentDevices
   "data": {
     "status": "healthy",
     "influxdb": "connected",
-    "sqlserver": "connected",
+    "mysql": "connected",
     "uptime": 86400
   }
 }
@@ -344,7 +344,7 @@ maxSafeAddDevices = totalMaxCapacity × 0.95 - currentDevices
   "data": {
     "status": "degraded",
     "influxdb": "disconnected",
-    "sqlserver": "connected",
+    "mysql": "connected",
     "uptime": 86400
   }
 }
