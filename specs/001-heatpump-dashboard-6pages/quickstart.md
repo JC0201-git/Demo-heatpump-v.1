@@ -70,6 +70,7 @@ REPORT_CACHE_TTL=300         # 月報/歷史資料快取秒數
 
 # ===== 維運設定 =====
 MAX_DEVICES_PER_TECH=20      # 每位技師最大可管設備數
+ALERT_OVERDUE_HOURS=24       # 未處理告警逾時門檻（小時），來源對應 system_settings
 ```
 
 > ⚠️ **請勿將含有真實密碼的 `.env` 提交至 Git。`docker/.env` 已加入 `.gitignore`。**

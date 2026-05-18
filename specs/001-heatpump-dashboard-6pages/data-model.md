@@ -139,6 +139,7 @@
 - 一台 **設備（device）** 可對應多顆 **電錶（meter）**（透過 `device_meter_mappings`）
 - 一顆 **電錶（meter）** 可對應多台設備（共用電錶）
 - 一台設備可有多筆 **告警（alert）**
+- 一台設備有一筆 **風險快照（device_risk_snapshot）**，保存風險分數六維度的 MySQL 快照分數
 - 一筆告警可觸發一張 **工單（work_order）**
 - 一位 **技師（technician）** 可被指派多筆告警與工單
 - 一個 **使用者（user）** 可綁定一位技師
@@ -223,6 +224,28 @@ CREATE TABLE devices (
 );
 CREATE INDEX IX_devices_status ON devices(current_status);
 CREATE INDEX IX_devices_risk_score ON devices(risk_score DESC);
+
+-- ============================================================
+-- 設備風險分數快照（riskScoreService 的直接資料來源）
+-- ============================================================
+CREATE TABLE device_risk_snapshots (
+  device_id                   INT PRIMARY KEY REFERENCES devices(device_id),
+  alert_severity_score        DECIMAL(5,2) NOT NULL DEFAULT 0
+                              CHECK (alert_severity_score >= 0 AND alert_severity_score <= 100),
+  recent_anomaly_7d_score     DECIMAL(5,2) NOT NULL DEFAULT 0
+                              CHECK (recent_anomaly_7d_score >= 0 AND recent_anomaly_7d_score <= 100),
+  offline_hours_score         DECIMAL(5,2) NOT NULL DEFAULT 0
+                              CHECK (offline_hours_score >= 0 AND offline_hours_score <= 100),
+  open_work_orders_score      DECIMAL(5,2) NOT NULL DEFAULT 0
+                              CHECK (open_work_orders_score >= 0 AND open_work_orders_score <= 100),
+  energy_anomaly_score        DECIMAL(5,2) NOT NULL DEFAULT 0
+                              CHECK (energy_anomaly_score >= 0 AND energy_anomaly_score <= 100),
+  overdue_maintenance_score   DECIMAL(5,2) NOT NULL DEFAULT 0
+                              CHECK (overdue_maintenance_score >= 0 AND overdue_maintenance_score <= 100),
+  snapshot_at                 DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at                  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+CREATE INDEX IX_device_risk_snapshots_updated ON device_risk_snapshots(snapshot_at DESC);
 
 -- ============================================================
 -- 電錶主檔
@@ -354,7 +377,8 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
   ('polling_interval_sec', '30', '前端輪詢間隔（秒）'),
   ('alert_page_size', '50', '告警列表每頁筆數'),
   ('risk_score_refresh_min', '5', '風險分數刷新間隔（分鐘）'),
-  ('default_query_days', '30', '預設查詢區間（天）');
+  ('default_query_days', '30', '預設查詢區間（天）'),
+  ('ALERT_OVERDUE_HOURS', '24', '未處理告警逾時門檻（小時），供月報逾時未處理統計使用');
 
 -- 風險分數權重初始值（加總 = 100）
 INSERT INTO risk_score_weights (rule_name, description, weight) VALUES
@@ -446,6 +470,31 @@ export interface RiskDeviceItem {
   suggestedAction: '緊急' | '本週' | '本月';
   rankChange: RankChange;
   rankDelta: number;
+}
+
+export interface DeviceRiskSnapshot {
+  deviceId: number;
+  alertSeverityScore: number;
+  recentAnomaly7dScore: number;
+  offlineHoursScore: number;
+  openWorkOrdersScore: number;
+  energyAnomalyScore: number;
+  overdueMaintenanceScore: number;
+  snapshotAt: string; // ISO8601
+}
+
+// types/report.ts
+export interface MonthlyReport {
+  month: string;          // YYYY-MM
+  generatedAt: string;    // ISO8601
+  alertStats: {
+    totalAlerts: number;
+    resolvedCount: number;
+    resolvedRate: number;
+    avgResolveHours: number | null;
+    overdueCount: number;
+    overdueThresholdHours: number; // system_settings.ALERT_OVERDUE_HOURS，預設 24
+  };
 }
 ```
 

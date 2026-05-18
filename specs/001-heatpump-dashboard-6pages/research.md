@@ -197,6 +197,22 @@ WHERE "device_id" = 'DEV-001'
 
 ---
 
+## 研究 11：未處理告警逾時門檻設定
+
+**決策**：未處理告警逾時門檻由 `system_settings.ALERT_OVERDUE_HOURS` 管理，預設值為 24 小時。
+
+**理由**：
+- 月報的「逾時未處理」屬營運管理門檻，未來可能因 SLA 或客戶合約調整，不應寫死在月報邏輯中
+- `system_settings` 已用於輪詢間隔、查詢天數與維運容量設定，沿用同一設定來源可降低維護成本
+- 24 小時符合 Demo 階段對「跨日未處理」告警的直覺判定，利於主管快速辨識延宕項目
+
+**考慮過的替代方案**：
+- 寫死在程式常數：實作最簡單，但後續調整需重新部署
+- 由前端傳入 query parameter：彈性高，但會讓同一月份報告因使用者輸入而不一致
+- 依告警嚴重性設定不同門檻：更精細，但 v1 規格未要求，Demo 階段過度複雜
+
+---
+
 ## 研究總結：所有 NEEDS CLARIFICATION 已解決
 
 | 原始問題 | 決策 |
@@ -211,3 +227,4 @@ WHERE "device_id" = 'DEV-001'
 | 跨 EC2 連線 | **VPC 私有 IP + Security Group** |
 | Daily summary 必要性 | **必要，Demo 即實作** |
 | Mock 資料規模 | **73 個 JSON，啟動時載入** |
+| 未處理告警逾時門檻 | **`system_settings.ALERT_OVERDUE_HOURS`，預設 24 小時** |

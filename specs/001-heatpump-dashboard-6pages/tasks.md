@@ -40,9 +40,9 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 ### 2A：後端基礎設施
 
-- [ ] T007 定義 Drizzle ORM MySQL Schema（clients、sites、devices、meters、device_meter_mappings、alerts、work_orders、technicians、users、system_settings、risk_score_weights；含索引與 CHECK constraint）→ `backend/src/db/schema.ts`
+- [ ] T007 定義 Drizzle ORM MySQL Schema（clients、sites、devices、device_risk_snapshots、meters、device_meter_mappings、alerts、work_orders、technicians、users、system_settings、risk_score_weights；含風險六維度快照欄位、索引與 CHECK constraint）→ `backend/src/db/schema.ts`
 - [ ] T008 建立 Drizzle 初始 migration SQL（完整對應 data-model.md DDL 與索引）→ `backend/src/db/migrations/0001_init.sql`
-- [ ] T009 [P] 建立 seed 腳本（80 台 devices：DEV-001～DEV-007 為 real、DEV-008～DEV-080 為 mock；system_settings 含 polling_interval_sec、alert_page_size、risk_score_refresh_min、default_query_days、MAX_DEVICES_PER_TECH、MAX_WORK_ORDERS_PER_TECH、ALERT_OVERDUE_HOURS；risk_score_weights 6 條；users 與 technicians 初始資料）→ `backend/src/db/seed.ts`
+- [ ] T009 [P] 建立 seed 腳本（80 台 devices：DEV-001～DEV-007 為 real、DEV-008～DEV-080 為 mock；為每台設備建立 device_risk_snapshots 六維度初始快照；system_settings 含 polling_interval_sec、alert_page_size、risk_score_refresh_min、default_query_days、MAX_DEVICES_PER_TECH、MAX_WORK_ORDERS_PER_TECH、ALERT_OVERDUE_HOURS；risk_score_weights 6 條；users 與 technicians 初始資料）→ `backend/src/db/seed.ts`
 - [ ] T010 [P] 建立 InfluxDB 1.x client 與 InfluxQL 查詢封裝（power_meter、heatpump_status、energy_daily_summary、heatpump_daily_summary；包含缺欄位回傳 null）→ `backend/src/influx/client.ts`、`backend/src/influx/queries.ts`
 - [ ] T011 [P] 建立 Mock 資料產生腳本與 73 台 Mock JSON（每檔含 realtimeStatus、powerDailySummary、operationDailySummary、alerts、workOrders；數值隨機但可重現）→ `scripts/generate-mock-data.ts`、`mock-data/devices/DEV-008.json`
 - [ ] T012 建立 Mock 資料載入器（啟動時讀取 `mock-data/devices/` 至記憶體；提供 getMockDevice、getMockDeviceList、getPowerSummary、getOperationSummary）→ `backend/src/mock/loader.ts`
@@ -144,13 +144,13 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 ### 測試先行（US2）
 
-- [ ] T057 [US2] 風險排序整合測試（GET /api/risk/top-devices 驗恰好 10 筆、risk_score DESC、riskReasons、suggestedAction、rankChange/rankDelta、5 分鐘快取；測試先於 T060/T061）→ `backend/tests/integration/risk.test.ts`
+- [ ] T057 [US2] 風險排序整合測試（GET /api/risk/top-devices 以 MySQL device_risk_snapshots fixture 驗恰好 10 筆、risk_score DESC、riskReasons、suggestedAction、rankChange/rankDelta、5 分鐘快取；測試先於 T060/T061）→ `backend/tests/integration/risk.test.ts`
 - [ ] T058 [P] [US2] 風險排序前端單元測試（RiskTable、RankBadge、RankChangeBadge；驗 Top 3 標示、↑/↓/不變、建議行動標籤、點擊導向單機履歷、PageStatusHeader）→ `frontend/tests/unit/RiskRanking/`
-- [ ] T059 [P] [US2] riskScoreService 單元測試（六維度計算、正規化 0/50/100、權重加總、輸出夾至 [0,100]；energy_anomaly 使用 energy_daily_summary/mock powerDailySummary 的 anomalyFlag 或歷史均值；測試先於 T060）→ `backend/tests/unit/services/riskScoreService.test.ts`
+- [ ] T059 [P] [US2] riskScoreService 單元測試（六維度計算、權重加總、輸出夾至 [0,100]；所有維度分數只讀 MySQL device_risk_snapshots 快照欄位，energy_anomaly 使用 energy_anomaly_score；不得直接查 energy_daily_summary 或 mock powerDailySummary；測試先於 T060）→ `backend/tests/unit/services/riskScoreService.test.ts`
 
 ### 後端實作（US2）
 
-- [ ] T060 [US2] 實作 riskScoreService（alert_severity、recent_anomaly_7d、offline_hours、open_work_orders、energy_anomaly、overdue_maintenance；讀 risk_score_weights；寫回 devices.risk_score；保存前次排名供 rankChange）→ `backend/src/services/riskScoreService.ts`
+- [ ] T060 [US2] 實作 riskSnapshotService 與 riskScoreService（riskSnapshotService 每 5 分鐘從 MySQL alerts、work_orders、devices 狀態與已同步能耗異常快照 upsert device_risk_snapshots；riskScoreService 只讀 device_risk_snapshots 六維度快照欄位與 risk_score_weights 計算 riskScore，寫回 devices.risk_score；保存前次排名供 rankChange）→ `backend/src/services/riskSnapshotService.ts`、`backend/src/services/riskScoreService.ts`
 - [ ] T061 [US2] 實作 GET /api/risk/top-devices 路由（Top 10、riskReasons、suggestedAction：≥70 緊急/≥40 本週/<40 本月、rankChange/rankDelta、5 分鐘快取）→ `backend/src/routes/risk.ts`
 
 ### 前端實作（US2）
@@ -302,7 +302,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 - **US1 設備總覽（P1）**：第 2 階段後可開始；MVP 最小可展示範圍。
 - **US4 告警中心（P1）**：第 2 階段後可開始；依 devices/technicians/alerts schema，但不依賴 US1 前端。
-- **US2 風險排序（P2）**：第 2 階段後可開始；依 alerts、work_orders、risk_score_weights 與 daily summary/mock 能耗資料。
+- **US2 風險排序（P2）**：第 2 階段後可開始；依 MySQL device_risk_snapshots、alerts、work_orders、devices 狀態與 risk_score_weights，不直接依賴 daily summary/mock 能耗資料。
 - **US3 單機履歷（P2）**：第 2 階段後可開始；依 devices routes、Influx queries、mock loader。
 - **US5 月報雛形（P3）**：第 2 階段後可開始；依 reportService 聚合 alerts/devices/risk_score。
 - **US6 老闆決策頁（P3）**：第 2 階段後可開始；依 executiveService、work_orders、risk top clients。

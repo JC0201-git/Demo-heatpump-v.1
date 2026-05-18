@@ -140,7 +140,7 @@
 
 ### GET /api/reports/monthly
 
-**說明**：取得指定月份的設備月度統計報告（前端使用此資料產生 PDF）。
+**說明**：取得指定月份的設備月度統計報告（前端使用此資料產生 PDF）。逾時未處理告警門檻由 `system_settings.ALERT_OVERDUE_HOURS` 決定，預設 24 小時。
 
 #### Query Parameters
 
@@ -187,12 +187,18 @@
       "resolvedCount": 42,
       "resolvedRate": 0.875,
       "avgResolveHours": 4.2,
-      "overdueCount": 6
+      "overdueCount": 6,
+      "overdueThresholdHours": 24
     }
   },
   "meta": { "updatedAt": "2026-05-17T10:30:05Z" }
 }
 ```
+
+**`alertStats.overdueCount` 計算規則**：
+- 統計狀態為 `open` 或 `in_progress` 的告警。
+- 若 `generatedAt - occurredAt` 超過 `system_settings.ALERT_OVERDUE_HOURS` 小時，即計入逾時未處理。
+- `ALERT_OVERDUE_HOURS` 缺漏或無法解析時，使用預設 24 小時。
 
 #### Response 422 Unprocessable Entity
 

@@ -39,3 +39,4 @@
 - 設備總覽（P1）與告警中心（P1）為最高優先，風險排序（P2）與單機履歷（P2）次之，月報與決策頁（P3）為最低優先
 - 視覺設計風格已於 FR-030 至 FR-034 中描述，詳細設計稿請參考 `reference/Heat Pump Dashboard.html`
 - 風險分數計算公式與角色權限規劃已在規格中釐清；任務交叉引用已對齊目前 `tasks.md`
+- 未處理告警逾時門檻已釐清：預設 24 小時，來源為 `system_settings.ALERT_OVERDUE_HOURS`

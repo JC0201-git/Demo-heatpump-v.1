@@ -318,7 +318,8 @@ backend/src/
 | `work_orders` | 維修工單 |
 | `technicians` | 維運人員 |
 | `users` | 登入帳號（含 `role` 欄位，v1 不啟用）|
-| `system_settings` | 系統設定（輪詢間隔、告警門檻等）|
+| `system_settings` | 系統設定（輪詢間隔、告警門檻、維運容量等；含 `ALERT_OVERDUE_HOURS=24`）|
+| `device_risk_snapshots` | 風險分數六維度 MySQL 快照欄位，供風險排序計算讀取 |
 | `risk_score_weights` | 風險分數權重（6 項，加總 100）|
 
 ---
@@ -394,6 +395,12 @@ GROUP BY time(1d) fill(null)
 - **錯誤處理**：統一 `{ error, message, statusCode }` 格式；4xx 含繁中說明
 - **認證**：除 `/api/auth/login`、`/api/system/health` 外，所有端點需有效 JWT
 
+### 月報逾時未處理計算規則
+
+- 月報 `alertStats.overdueCount` 統計狀態仍為 `open` 或 `in_progress`，且 `occurred_at` 距月報產生時間超過逾時門檻的告警。
+- 逾時門檻來源為 `system_settings.ALERT_OVERDUE_HOURS`，預設值為 24 小時。
+- 若設定值缺漏或無法解析為正整數，後端採 24 小時作為保守 fallback，並在服務日誌記錄設定異常。
+
 ---
 
 ## 八、登入與安全性規劃
@@ -423,6 +430,7 @@ GROUP BY time(1d) fill(null)
 JWT_SECRET=<至少 64 字元隨機字串>
 MYSQL_PASSWORD=<不進 Git>
 INFLUXDB_PASSWORD=<不進 Git>
+ALERT_OVERDUE_HOURS=24
 ```
 
 > `.env` 加入 `.gitignore`；提供 `docker/env.example` 範本
@@ -488,7 +496,7 @@ riskScore = Σ (dimension_score_i × weight_i / 100)
   overdue_maintenance (w= 5)：距上次完工 >180 天 → 5分，否則0分
 ```
 
-所有資料來自 MySQL（告警、工單、設備狀態），每 5 分鐘刷新。
+風險分數計算的直接資料來源為 MySQL `device_risk_snapshots` 快照欄位與 `risk_score_weights`。`riskSnapshotService` 每 5 分鐘從 MySQL 告警、工單、設備狀態與已同步的能耗異常快照更新六維度分數；`riskScoreService` 不直接查 InfluxDB 或 Mock daily summary。
 
 ### MVP 版本公式升級路線
 
@@ -646,7 +654,7 @@ location /     { proxy_pass http://frontend:80; }
 | 單機履歷 | 四個頁籤資料正確，30 日圖表正常，缺資料顯示 `--` |
 | 告警指派 | 指派後 status 變 in_progress，指派人顯示 |
 | 告警解除 | 解除後記錄 resolved_at，從未處理列表移除 |
-| 月報生成 | 選月份後統計數字正確，PDF 成功下載 |
+| 月報生成 | 選月份後統計數字正確，`ALERT_OVERDUE_HOURS` 逾時未處理計算正確，PDF 成功下載 |
 | 老闆決策頁 | KPI 數字正確，擴張計算邏輯符合預期 |
 
 ### 效能測試（k6）
