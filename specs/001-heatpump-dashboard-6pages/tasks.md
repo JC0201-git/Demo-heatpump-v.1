@@ -108,13 +108,13 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 ## 第 4 階段：使用者故事 4 — 告警中心（優先順序：P1）
 
-**目標**：值班工程師可集中管理即時告警、指派負責人、標記已解除；未指派告警置頂，高嚴重性視覺突出。  
-**獨立驗收測試**：帶入告警資料後，驗未指派置頂、高嚴重性高亮、狀態/類型篩選、指派與解除狀態正確寫回。
+**目標**：值班工程師可集中管理即時告警、指派負責人、標記已解除；排序為未指派置頂 → 嚴重性高/中/低 → 發生時間新到舊，高嚴重性僅作視覺突出且不覆蓋排序優先序。
+**獨立驗收測試**：帶入告警資料後，驗未指派置頂、同指派狀態下依嚴重性與發生時間排序、高嚴重性高亮、狀態/類型篩選、指派與解除狀態正確寫回。
 
 ### 測試先行（US4）
 
-- [ ] T044 [US4] 告警中心整合測試（GET /api/alerts 驗未指派置頂、severity=high 排序、limit=50 分頁；PUT assign 驗 in_progress/assigned_at；PUT resolve 驗 resolved_at；SC-002 三步驟驗收寫入紀錄；測試先於 T046-T050）→ `backend/tests/integration/alerts.test.ts`、`docs/acceptance-sc002.md`
-- [ ] T045 [P] [US4] 告警中心前端單元測試（AlertTable、AlertFilter、AssignModal、ResolveButton；驗高嚴重性紅色背景、未指派置頂、技師下拉、解除確認、PageStatusHeader）→ `frontend/tests/unit/AlertCenter/`
+- [ ] T044 [US4] 告警中心整合測試（GET /api/alerts 驗排序優先序：未指派置頂 → severity high/medium/low → occurredAt DESC，且 limit=50 分頁不破壞排序；PUT assign 驗 in_progress/assigned_at；PUT resolve 驗 resolved_at；SC-002 三步驟驗收寫入紀錄；測試先於 T046-T050）→ `backend/tests/integration/alerts.test.ts`、`docs/acceptance-sc002.md`
+- [ ] T045 [P] [US4] 告警中心前端單元測試（AlertTable、AlertFilter、AssignModal、ResolveButton；驗依後端排序顯示、未指派置頂、高嚴重性紅色背景但不改變排序、技師下拉、解除確認、PageStatusHeader）→ `frontend/tests/unit/AlertCenter/`
 
 ### 後端實作（US4）
 
@@ -127,7 +127,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 ### 前端實作（US4）
 
 - [ ] T051 [US4] 建立 alertStore（告警列表、篩選條件、分頁、樂觀更新指派/解除、錯誤回滾）→ `frontend/src/stores/alertStore.ts`
-- [ ] T052 [P] [US4] 建立 AlertTable 元件（告警 ID、設備、客戶、異常類型、發生時間、狀態、負責人；未指派與高嚴重性視覺突出）→ `frontend/src/pages/AlertCenter/AlertTable.tsx`
+- [ ] T052 [P] [US4] 建立 AlertTable 元件（告警 ID、設備、客戶、異常類型、發生時間、狀態、負責人；依 store/API 排序渲染，未指派標示與高嚴重性視覺突出不在前端覆寫排序）→ `frontend/src/pages/AlertCenter/AlertTable.tsx`
 - [ ] T053 [P] [US4] 建立 AlertFilter 元件（未處理/處理中/已解除與異常類型篩選）→ `frontend/src/pages/AlertCenter/AlertFilter.tsx`
 - [ ] T054 [P] [US4] 建立 AssignModal 元件（技師下拉、呼叫 assign API、繁中結果回饋、鍵盤可操作）→ `frontend/src/pages/AlertCenter/AssignModal.tsx`
 - [ ] T055 [P] [US4] 建立 ResolveButton 元件（確認對話框、resolutionNote、呼叫 resolve API、更新 store）→ `frontend/src/pages/AlertCenter/ResolveButton.tsx`
@@ -146,11 +146,11 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 - [ ] T057 [US2] 風險排序整合測試（GET /api/risk/top-devices 以 MySQL device_risk_snapshots fixture 驗恰好 10 筆、risk_score DESC、riskReasons、suggestedAction、rankChange/rankDelta、5 分鐘快取；測試先於 T060/T061）→ `backend/tests/integration/risk.test.ts`
 - [ ] T058 [P] [US2] 風險排序前端單元測試（RiskTable、RankBadge、RankChangeBadge；驗 Top 3 標示、↑/↓/不變、建議行動標籤、點擊導向單機履歷、PageStatusHeader）→ `frontend/tests/unit/RiskRanking/`
-- [ ] T059 [P] [US2] riskScoreService 單元測試（六維度計算、權重加總、輸出夾至 [0,100]；所有維度分數只讀 MySQL device_risk_snapshots 快照欄位，energy_anomaly 使用 energy_anomaly_score；不得直接查 energy_daily_summary 或 mock powerDailySummary；測試先於 T060）→ `backend/tests/unit/services/riskScoreService.test.ts`
+- [ ] T059 [P] [US2] riskScoreService / riskSnapshotService 單元測試（riskScoreService 驗六維度計算、權重加總、公式使用 `Σ(score_i × weight_i / 100)`、輸出夾至 [0,100]；所有維度分數只讀 MySQL device_risk_snapshots 快照欄位，energy_anomaly 使用 energy_anomaly_score，不得直接查 energy_daily_summary 或 mock powerDailySummary；riskSnapshotService 驗 energy_anomaly_score 由 real daily summary / mock powerDailySummary 產生，real 路徑套用 device_meter_mappings.share_ratio，最新有效日用電量相對歷史基準平均（預設近 30 日且排除比較日）超過 20% 設為 100，否則 0，歷史基準不足 7 筆有效日資料時為 0；測試先於 T060）→ `backend/tests/unit/services/riskScoreService.test.ts`、`backend/tests/unit/services/riskSnapshotService.test.ts`
 
 ### 後端實作（US2）
 
-- [ ] T060 [US2] 實作 riskSnapshotService 與 riskScoreService（riskSnapshotService 每 5 分鐘從 MySQL alerts、work_orders、devices 狀態與已同步能耗異常快照 upsert device_risk_snapshots；riskScoreService 只讀 device_risk_snapshots 六維度快照欄位與 risk_score_weights 計算 riskScore，寫回 devices.risk_score；保存前次排名供 rankChange）→ `backend/src/services/riskSnapshotService.ts`、`backend/src/services/riskScoreService.ts`
+- [ ] T060 [US2] 實作 riskSnapshotService 與 riskScoreService（riskSnapshotService 每 5 分鐘從 MySQL alerts、work_orders、devices 狀態、real `energy_daily_summary` + `device_meter_mappings.share_ratio` 與 mock `powerDailySummary` 計算並 upsert device_risk_snapshots 六維度快照；其中 energy_anomaly_score 以最新有效日用電量相對歷史基準平均（預設近 30 日且排除比較日）超過 20% 設為 100，否則 0，歷史基準不足 7 筆有效日資料時為 0；riskScoreService 只讀 device_risk_snapshots 六維度快照欄位與 risk_score_weights 計算 riskScore，寫回 devices.risk_score；保存前次排名供 rankChange）→ `backend/src/services/riskSnapshotService.ts`、`backend/src/services/riskScoreService.ts`
 - [ ] T061 [US2] 實作 GET /api/risk/top-devices 路由（Top 10、riskReasons、suggestedAction：≥70 緊急/≥40 本週/<40 本月、rankChange/rankDelta、5 分鐘快取）→ `backend/src/routes/risk.ts`
 
 ### 前端實作（US2）
@@ -265,7 +265,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T106 [P] 建立深色主題與圖表對比自動檢查（Tailwind token、ECharts 背景與高對比色、狀態色語意一致）→ `frontend/tests/accessibility/theme-contrast.test.ts`
 - [ ] T107 [P] 建立離線與 stale 資料跨頁一致性整合測試（DeviceList、AlertCenter、RiskRanking、DeviceHistory、MonthlyReport、ExecutiveDashboard 均顯示 PageStatusHeader 與「資料可能過期」）→ `frontend/tests/integration/stale-data.test.ts`
 - [ ] T108 [P] 建立 lint/format 最終驗證報告產生腳本（frontend/backend ESLint + Prettier；零錯誤；函式圈複雜度 ≤10；必要 suppression 必須有註解；掃描 dead code、commented-out blocks、TODO/FIXME/XXX，未附 issue 與目標 sprint 或超過一 sprint 者失敗）→ `scripts/quality-check.sh`、`docs/lint-report.md`
-- [ ] T109 [P] 建立 API 效能基準與 baseline 比對（k6：GET /api/devices、/api/alerts、/api/risk/top-devices、/api/reports/monthly、/api/executive/summary p95 ≤500ms；儲存 baseline，任一 tracked API p95 較 baseline 回歸 >10% 時 CI 失敗）→ `backend/tests/performance/api.k6.ts`、`backend/tests/performance/perf-baseline.json`、`.github/workflows/perf.yml`
+- [ ] T109 [P] 建立 API 效能基準與 baseline 比對（k6：GET /api/devices、30 日趨勢 API GET /api/devices/:deviceId/power 與 /api/devices/:deviceId/operation、GET /api/alerts、/api/risk/top-devices、/api/reports/monthly、/api/executive/summary p95 ≤500ms；儲存 baseline，任一 tracked API p95 較 baseline 回歸 >10% 時 CI 失敗）→ `backend/tests/performance/api.k6.ts`、`backend/tests/performance/perf-baseline.json`、`.github/workflows/perf.yml`
 - [ ] T110 [P] 建立告警中心 SC-004 效能驗收（80 筆告警、GET /api/alerts?limit=50 p95 ≤500ms、前端頁面載入 ≤3 秒，截圖/結果入文件）→ `backend/tests/performance/alertCenter.perf.ts`、`docs/perf-sc004.md`
 - [ ] T111 [P] 建立月報 PDF SC-003 效能驗收（量測 html2canvas + jsPDF save 完成時間 ≤30 秒，記錄瓶頸與截圖）→ `frontend/src/utils/pdfPerfTest.ts`、`docs/perf-sc003.md`
 - [ ] T112 建立測試覆蓋率 gate（前端 Vitest coverage、後端 Jest coverageThreshold；修改模組 ≥80%，輸出 lcov）→ `frontend/vite.config.ts`、`backend/jest.config.ts`、`.github/workflows/ci.yml`
@@ -303,7 +303,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 - **US1 設備總覽（P1）**：第 2 階段後可開始；MVP 最小可展示範圍。
 - **US4 告警中心（P1）**：第 2 階段後可開始；依 devices/technicians/alerts schema，但不依賴 US1 前端。
-- **US2 風險排序（P2）**：第 2 階段後可開始；依 MySQL device_risk_snapshots、alerts、work_orders、devices 狀態與 risk_score_weights，不直接依賴 daily summary/mock 能耗資料。
+- **US2 風險排序（P2）**：第 2 階段後可開始；riskScoreService 依 MySQL device_risk_snapshots、alerts、work_orders、devices 狀態與 risk_score_weights；riskSnapshotService 僅為產生 energy_anomaly_score 讀取 real daily summary / mock powerDailySummary。
 - **US3 單機履歷（P2）**：第 2 階段後可開始；依 devices routes、Influx queries、mock loader。
 - **US5 月報雛形（P3）**：第 2 階段後可開始；依 reportService 聚合 alerts/devices/risk_score。
 - **US6 老闆決策頁（P3）**：第 2 階段後可開始；依 executiveService、work_orders、risk top clients。

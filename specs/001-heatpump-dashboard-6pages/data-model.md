@@ -386,7 +386,7 @@ INSERT INTO risk_score_weights (rule_name, description, weight) VALUES
   ('recent_anomaly_7d',   '近 7 日異常次數（每次 2 分，上限 20 分）', 20.00),
   ('offline_hours',       '今日離線時數（每小時 5 分，上限 20 分）', 20.00),
   ('open_work_orders',    '未完成工單數（每張 7.5 分，上限 15 分）', 15.00),
-  ('energy_anomaly',      '能耗超過歷史均值 20% 則計 10 分', 10.00),
+  ('energy_anomaly',      '能耗超過歷史均值 20% 時 energy_anomaly_score 設為 100，否則 0', 10.00),
   ('overdue_maintenance', '距上次完工超過 180 天則計 5 分', 5.00);
 ```
 

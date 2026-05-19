@@ -505,11 +505,17 @@ riskScore = Σ (dimension_score_i × weight_i / 100)
   recent_anomaly_7d   (w=20)：近7日異常次數 × 2，上限20，正規化至0-100
   offline_hours       (w=20)：今日離線時數 × 5，上限20，正規化至0-100
   open_work_orders    (w=15)：未完成工單數 × 7.5，上限15，正規化至0-100
-  energy_anomaly      (w=10)：超過歷史均值20% → 10分，否則0分
+  energy_anomaly      (w=10)：超過歷史均值20% → 維度分數 100，否則0
   overdue_maintenance (w= 5)：距上次完工 >180 天 → 5分，否則0分
 ```
 
-風險分數計算的直接資料來源為 MySQL `device_risk_snapshots` 快照欄位與 `risk_score_weights`。`riskSnapshotService` 每 5 分鐘從 MySQL 告警、工單、設備狀態與已同步的能耗異常快照更新六維度分數；`riskScoreService` 不直接查 InfluxDB 或 Mock daily summary。
+**能耗異常快照產生規則**：
+- `riskSnapshotService` 負責產生 `device_risk_snapshots.energy_anomaly_score`，`riskScoreService` 只讀快照欄位，不直接查 InfluxDB 或 Mock daily summary。
+- Real 設備：透過 `device_meter_mappings.share_ratio` 查詢 `energy_daily_summary`，以最近一筆有效日用電量與同設備歷史基準平均（預設近 30 日，排除當日）比較。
+- Mock 設備：讀取 Mock JSON 的 `powerDailySummary`，套用與 real 設備相同的比較規則。
+- 若最近一筆有效日用電量超過歷史基準平均 20%，`energy_anomaly_score = 100`；否則為 0。若歷史基準不足 7 筆有效日資料，保守回傳 0 並記錄可觀測日數，避免以不足資料誤判風險。
+
+風險分數計算的直接資料來源為 MySQL `device_risk_snapshots` 快照欄位與 `risk_score_weights`。`riskSnapshotService` 每 5 分鐘從 MySQL 告警、工單、設備狀態、daily summary 與 Mock summary 更新六維度分數；`riskScoreService` 不直接查 InfluxDB 或 Mock daily summary。
 
 ### MVP 版本公式升級路線
 
@@ -676,7 +682,7 @@ location /     { proxy_pass http://frontend:80; }
 | 場景 | 目標 |
 |------|------|
 | 告警中心（80 筆告警）| 頁面載入 ≤ 3 秒 |
-| 30 日趨勢圖 | API 回應 ≤ 500 ms（走 daily summary 快取）|
+| 30 日趨勢圖 | `GET /api/devices/:deviceId/power` 與 `GET /api/devices/:deviceId/operation` API 回應 ≤ 500 ms（走 daily summary 快取）|
 | 月報 PDF 產生 | ≤ 30 秒 |
 | 主要 UI render | 首次 render 與互動後 render p95 ≤ 500 ms |
 | 30 秒輪詢（10 並發）| 無記憶體洩漏，CPU < 50% |
@@ -684,7 +690,7 @@ location /     { proxy_pass http://frontend:80; }
 ### CI/CD 與 Staging Gate
 
 - 每個 pull request 必須執行 lint、unit tests、integration tests、coverage threshold、build 與關鍵路徑效能 benchmark；任一失敗必須阻擋合併。
-- 修改 critical path（設備列表、告警中心、風險排序、月報、老闆決策頁）時，CI 必須執行 API p95 與 UI render p95 benchmark。
+- 修改 critical path（設備列表、告警中心、風險排序、單機履歷 30 日趨勢、月報、老闆決策頁）時，CI 必須執行 API p95 與 UI render p95 benchmark。
 - production release 前必須完成 staging deployment；staging smoke test 至少覆蓋 Docker 啟動、健康檢查、登入、六頁主要路由與 API health。
 
 ---
