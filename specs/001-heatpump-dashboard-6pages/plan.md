@@ -199,8 +199,10 @@ colors: {
 
 ```typescript
 // hooks/usePolling.ts
-// 每 30 秒重新取得設備狀態與告警資料（系統設定 polling_interval_sec 可調）
-// 頁面切換時不重置計時器，避免頻繁請求
+// 全域輪詢服務集中管理設備狀態、告警與風險摘要刷新（系統設定 polling_interval_sec 可調）
+// 使用者登入後啟動，每 30 秒重新取得最新資料；頁面切換時不重置計時器
+// 登出或離開受保護區域時停止輪詢並清理 timer，避免背景請求殘留
+// 各頁面透過共用 store 訂閱資料，不各自建立獨立 timer
 // API 無回應時顯示「API 連線異常」橫幅，保留最後快取值
 ```
 
@@ -401,6 +403,14 @@ GROUP BY time(1d) fill(null)
 - 逾時門檻來源為 `system_settings.ALERT_OVERDUE_HOURS`，預設值為 24 小時。
 - 若設定值缺漏或無法解析為正整數，後端採 24 小時作為保守 fallback，並在服務日誌記錄設定異常。
 
+### 擴張承載能力計算規則
+
+- 安全承接線 v1 固定為總設備承載量的 95%，保留 5% 緩衝給突發維修、離線追查與未排程工單；此比例為 Demo 階段的業務保守門檻。
+- `totalMaxCapacity = activeTechnicianCount × MAX_DEVICES_PER_TECH`；`MAX_DEVICES_PER_TECH` 來源為 `system_settings`，與工單產能用的 `MAX_WORK_ORDERS_PER_TECH` 不可混用。
+- `maxSafeAddDevices = totalMaxCapacity × 0.95 − currentDevices`；顯示時向下取整，若結果小於 0 則顯示 0 並標示目前已超過安全線。
+- `projectedUtilization = (currentDevices + addDevices) / totalMaxCapacity × 100`，供老闆決策頁判斷新增 N 台設備後是否仍低於 95% 安全線。
+- MVP 若需要依季節、人員等級或 SLA 調整安全線，可將 95% 抽為 `system_settings.CAPACITY_SAFETY_FACTOR`，但 v1 不提供前端設定頁。
+
 ---
 
 ## 八、登入與安全性規劃
@@ -431,6 +441,7 @@ JWT_SECRET=<至少 64 字元隨機字串>
 MYSQL_PASSWORD=<不進 Git>
 INFLUXDB_PASSWORD=<不進 Git>
 ALERT_OVERDUE_HOURS=24
+ALERT_EVALUATION_ENABLED=false
 ```
 
 > `.env` 加入 `.gitignore`；提供 `docker/env.example` 範本
@@ -461,14 +472,16 @@ async function getDevicePower(deviceCode: string, days: number): Promise<PowerDa
 
 ### Mock JSON 結構（每台設備一個 JSON）
 
+Mock JSON 欄位命名以 `data-model.md` 第六節與 T011 為準，避免 mock loader 與測試資料產生器使用不同 schema。
+
 ```json
 {
   "deviceCode": "DEV-008",
   "realtimeStatus": { "status": "normal", "powerKw": 4.8 },
-  "powerHistory": [
-    { "date": "2026-04-18", "kwhTotal": 115.2, "anomalyFlag": false }
+  "powerDailySummary": [
+    { "date": "2026-04-18", "kwhTotal": 115.2, "kwhPeak": 18.4, "avgPowerKw": 4.8, "anomalyFlag": false }
   ],
-  "operationHistory": [
+  "operationDailySummary": [
     { "date": "2026-04-18", "runHours": 18.5, "startupCount": 3, "avgCop": 3.2 }
   ],
   "alerts": [],
@@ -522,7 +535,7 @@ MySQL alerts 表 ──▶ GET /api/alerts ──▶ 前端告警列表
 
 ### MVP 演進：判斷型告警中心
 
-預留架構（`alerts.source = 'auto'` 欄位已設計）：
+本階段只保留 schema 與 feature flag 預留，不建立 `AlertEvaluationJob` 模組。以下為 MVP 才新增的目標資料流：
 
 ```
 InfluxDB 時序資料 ──▶ AlertEvaluationJob（每分鐘執行）
@@ -532,8 +545,8 @@ InfluxDB 時序資料 ──▶ AlertEvaluationJob（每分鐘執行）
                         └── 長時間未心跳 → 新增 alert
 ```
 
-- Demo 階段：`AlertEvaluationJob` 模組已建立但不啟用（feature flag）
-- MVP 開啟 flag 即可激活自動告警
+- Demo 階段：僅設計 `alerts.source = 'auto'` 欄位與 `ALERT_EVALUATION_ENABLED=false` feature flag 預留，不排入實作任務
+- MVP 階段：新增 `AlertEvaluationJob`、判斷規則、測試與部署監控後，才可開啟 feature flag
 
 ---
 
@@ -591,18 +604,19 @@ location /     { proxy_pass http://frontend:80; }
 | 4 | MySQL Seed | 80 台設備、客戶、場域初始資料 |
 | 5 | 設備總覽 API | GET /api/devices（real + mock 整合）|
 | 6 | 前端骨架 | React 專案、Tailwind 深色主題、導覽列、登入頁 |
-| 7 | 設備總覽頁 | 列表、篩選、搜尋、狀態標籤 |
-| 8 | 風險排序 API | 風險分數計算（MySQL 維度）、Top 10 endpoint |
-| 9 | 風險排序頁 | 排名列表、排名變動標示 |
-| 10 | 單機履歷 API | power / operation / alerts / work-orders endpoint |
-| 11 | 單機履歷頁 | 四個子頁籤、ECharts 折線圖 |
-| 12 | 告警中心 API | alerts CRUD、assign / resolve |
-| 13 | 告警中心頁 | 列表、篩選、指派 Modal |
-| 14 | 月報 API | monthly report 聚合 |
-| 15 | 月報頁 | 圖表、PDF 匯出 |
-| 16 | 老闆決策 API + 頁面 | KPI、負載、容量 |
-| 17 | 整合測試 | 80 台設備完整流程驗證 |
-| 18 | 效能測試 | 告警中心 ≤3 秒、月報 PDF ≤30 秒 |
+| 7 | 全域輪詢與狀態基礎 | 全域 polling、PageStatusHeader、stale 資料顯示 |
+| 8 | 設備總覽頁 | 列表、篩選、搜尋、狀態標籤 |
+| 9 | 告警中心 API | alerts CRUD、assign / resolve |
+| 10 | 告警中心頁 | 列表、篩選、指派 Modal |
+| 11 | 風險排序 API | 風險分數計算（MySQL 維度）、Top 10 endpoint |
+| 12 | 風險排序頁 | 排名列表、排名變動標示 |
+| 13 | 單機履歷 API | power / operation / alerts / work-orders endpoint |
+| 14 | 單機履歷頁 | 四個子頁籤、ECharts 折線圖 |
+| 15 | 月報 API | monthly report 聚合 |
+| 16 | 月報頁 | 圖表、PDF 匯出 |
+| 17 | 老闆決策 API + 頁面 | KPI、負載、容量 |
+| 18 | 整合測試 | 80 台設備完整流程驗證 |
+| 19 | 效能測試 | 告警中心 ≤3 秒、月報 PDF ≤30 秒 |
 
 ---
 
@@ -611,7 +625,7 @@ location /     { proxy_pass http://frontend:80; }
 | 升級項目 | 工作量 | 說明 |
 |---------|--------|------|
 | 替換 Mock 設備 | 低 | 更新 `devices.data_source_type`，無前端改動 |
-| 自動告警判斷 | 中 | 開啟 `AlertEvaluationJob` feature flag |
+| 自動告警判斷 | 中 | 新增 `AlertEvaluationJob`、判斷規則與測試後，再開啟 feature flag |
 | 角色權限控管 | 中 | `users.role` 欄位已就位，加入 middleware 判斷 |
 | HTTPS | 低 | Nginx + certbot，無應用程式改動 |
 | React Query 狀態快取 | 低 | 取代部分 Zustand 的輪詢邏輯，降低請求數 |
@@ -695,7 +709,7 @@ location /     { proxy_pass http://frontend:80; }
 - 角色權限控管（`users.role` 已就位，但 v1 不啟用）
 - WebSocket / SSE 即時推送（v1 使用輪詢）
 - 後端 PDF 服務（Puppeteer）
-- 自動告警判斷（AlertEvaluationJob 預留但不啟用）
+- 自動告警判斷邏輯（本階段僅保留 `alerts.source` schema 與 feature flag，不建立 `AlertEvaluationJob`）
 - 資料收集機制（IoT 閘道器、MQTT 等）
 - 報表排程自動寄送（e-mail / LINE Notify）
 - 多語言（i18n）支援

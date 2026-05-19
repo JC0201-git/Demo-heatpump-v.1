@@ -27,7 +27,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T003 [P] 設定前端 ESLint、Prettier、Vitest 與 Testing Library 基礎設定（Constitution I/II；ESLint 必須啟用 `complexity: ["error", 10]`，函式圈複雜度超過 10 即失敗）→ `frontend/.eslintrc.cjs`、`frontend/.prettierrc`、`frontend/vite.config.ts`
 - [ ] T004 [P] 設定後端 ESLint、Prettier、Jest 與 Supertest 基礎設定（Constitution I/II；ESLint 必須啟用 `complexity: ["error", 10]`，函式圈複雜度超過 10 即失敗）→ `backend/.eslintrc.cjs`、`backend/.prettierrc`、`backend/jest.config.ts`
 - [ ] T005 [P] 建立 Docker Compose 服務定義與 Nginx 反向代理（`/api/*` → backend-api:3001，`/*` → frontend:80）→ `docker/docker-compose.yml`、`docker/nginx/default.conf`
-- [ ] T006 [P] 建立環境變數範本與 git ignore（JWT_SECRET、MYSQL_*、INFLUXDB_*、DEVICE_CACHE_TTL=25、REPORT_CACHE_TTL=300、MAX_DEVICES_PER_TECH=20、MAX_WORK_ORDERS_PER_TECH=10、ALERT_OVERDUE_HOURS=24）→ `docker/env.example`、`.gitignore`
+- [ ] T006 [P] 建立環境變數範本與 git ignore（JWT_SECRET、MYSQL_*、INFLUXDB_*、DEVICE_CACHE_TTL=25、REPORT_CACHE_TTL=300、MAX_DEVICES_PER_TECH=20、MAX_WORK_ORDERS_PER_TECH=10、ALERT_OVERDUE_HOURS=24、ALERT_EVALUATION_ENABLED=false）→ `docker/env.example`、`.gitignore`
 
 **檢查點**：前後端可各自安裝依賴並啟動；`docker compose up --build` 可啟動 frontend、backend-api、reverse-proxy。
 
@@ -44,8 +44,8 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T008 建立 Drizzle 初始 migration SQL（完整對應 data-model.md DDL 與索引）→ `backend/src/db/migrations/0001_init.sql`
 - [ ] T009 [P] 建立 seed 腳本（80 台 devices：DEV-001～DEV-007 為 real、DEV-008～DEV-080 為 mock；為每台設備建立 device_risk_snapshots 六維度初始快照；system_settings 含 polling_interval_sec、alert_page_size、risk_score_refresh_min、default_query_days、MAX_DEVICES_PER_TECH、MAX_WORK_ORDERS_PER_TECH、ALERT_OVERDUE_HOURS；risk_score_weights 6 條；users 與 technicians 初始資料）→ `backend/src/db/seed.ts`
 - [ ] T010 [P] 建立 InfluxDB 1.x client 與 InfluxQL 查詢封裝（power_meter、heatpump_status、energy_daily_summary、heatpump_daily_summary；包含缺欄位回傳 null）→ `backend/src/influx/client.ts`、`backend/src/influx/queries.ts`
-- [ ] T011 [P] 建立 Mock 資料產生腳本與 73 台 Mock JSON（每檔含 realtimeStatus、powerDailySummary、operationDailySummary、alerts、workOrders；數值隨機但可重現）→ `scripts/generate-mock-data.ts`、`mock-data/devices/DEV-008.json`
-- [ ] T012 建立 Mock 資料載入器（啟動時讀取 `mock-data/devices/` 至記憶體；提供 getMockDevice、getMockDeviceList、getPowerSummary、getOperationSummary）→ `backend/src/mock/loader.ts`
+- [ ] T011 [P] 建立 Mock 資料產生腳本與 73 台 Mock JSON（每檔含 realtimeStatus、powerDailySummary、operationDailySummary、alerts、workOrders；欄位名稱嚴格對齊 data-model.md，不產生其他 history 欄位別名；數值隨機但可重現）→ `scripts/generate-mock-data.ts`、`mock-data/devices/DEV-008.json`
+- [ ] T012 建立 Mock 資料載入器（啟動時讀取 `mock-data/devices/` 至記憶體；驗證每檔只接受 powerDailySummary/operationDailySummary；提供 getMockDevice、getMockDeviceList、getPowerSummary、getOperationSummary）→ `backend/src/mock/loader.ts`
 - [ ] T013 建立 dataSourceService（依 `devices.data_source_type` 路由至 real InfluxDB/MySQL 或 mock loader；統一 API response DTO；real API 失敗時保留最後快取值並標記 stale）→ `backend/src/services/dataSourceService.ts`
 - [ ] T014 初始化 Fastify 應用程式（註冊 cors、jwt、cookie、rate-limit；全域錯誤格式 `{error,message,statusCode}`；掛載 protected route preHandler）→ `backend/src/app.ts`、`backend/src/server.ts`
 - [ ] T015 實作 JWT 認證 preHandler hook（驗證 `hp_token` httpOnly cookie；驗證失敗回傳 401 UNAUTHORIZED 與繁中錯誤訊息）→ `backend/src/middleware/auth.ts`
@@ -62,8 +62,8 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 ### 2C：前端基礎設施
 
-- [ ] T023 [P] 定義前端共用 TypeScript 型別（與後端 DTO 對齊，含 stale/meta 欄位與繁中 label 型別）→ `frontend/src/types/device.ts`、`frontend/src/types/alert.ts`、`frontend/src/types/risk.ts`、`frontend/src/types/common.ts`
-- [ ] T024 建立 React App 主架構（React Router v6、ProtectedRoute、MainLayout、左側 Sidebar 六頁導覽、登入路由 `/login`、預設設備總覽 `/`）→ `frontend/src/App.tsx`、`frontend/src/components/Layout/Sidebar.tsx`、`frontend/src/components/Layout/MainLayout.tsx`
+- [ ] T023 [P] 定義前端共用 TypeScript 型別（與後端 DTO 對齊，含 stale/meta 欄位、powerDailySummary/operationDailySummary 型別與繁中 label 型別）→ `frontend/src/types/device.ts`、`frontend/src/types/alert.ts`、`frontend/src/types/risk.ts`、`frontend/src/types/common.ts`
+- [ ] T024 建立 React App 主架構（React Router v6、ProtectedRoute、MainLayout、PollingProvider 掛載點、左側 Sidebar 六頁導覽、登入路由 `/login`、預設設備總覽 `/`）→ `frontend/src/App.tsx`、`frontend/src/components/Layout/Sidebar.tsx`、`frontend/src/components/Layout/MainLayout.tsx`
 - [ ] T025 [P] 設定 Tailwind CSS 設計 Token（深綠黑背景、黃綠強調色、normal/alert/offline/maintenance 狀態色、AA 對比基準）→ `frontend/tailwind.config.ts`
 - [ ] T026 [P] 建立 Axios 實例與攔截器（withCredentials=true、baseURL=/api、401 導向 /login、讀取 meta.updatedAt 與 stale 標記）→ `frontend/src/services/api.ts`
 - [ ] T027 [P] 建立共用 StatusBadge 元件（綠 normal、紅 alert、灰 offline、橘 maintenance；輸出繁中 label）→ `frontend/src/components/StatusBadge.tsx`
@@ -71,7 +71,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T029 建立登入頁元件（帳號密碼表單、錯誤訊息繁中、成功後導向 `/`）→ `frontend/src/pages/Login/LoginPage.tsx`
 - [ ] T030 [P] 建立 authStore 與 useAuth Hook（登入使用者資訊、載入 me、登出方法）→ `frontend/src/stores/authStore.ts`、`frontend/src/hooks/useAuth.ts`
 - [ ] T031 [P] 建立 ProtectedRoute（未登入者重導 `/login`，登入中顯示可存取的載入狀態）→ `frontend/src/components/ProtectedRoute.tsx`
-- [ ] T032 [P] 建立 usePolling Hook（預設 30 秒，可 start/stop，頁面卸載清理 timer）→ `frontend/src/hooks/usePolling.ts`
+- [ ] T032 [P] 建立全域 usePolling Hook / PollingProvider（預設 30 秒，可 start/stop；登入後啟動，集中刷新 devices/alerts/risk summary；頁面切換不重置 timer，登出或離開受保護區域時清理）→ `frontend/src/hooks/usePolling.ts`、`frontend/src/components/PollingProvider.tsx`
 - [ ] T033 [P] 建立 LastUpdatedBadge 元件（顯示最後資料更新時間，支援 stale 標記）→ `frontend/src/components/LastUpdatedBadge.tsx`
 - [ ] T034 [P] 建立 PageStatusHeader 共用元件（每個受保護頁面統一放置 AlertBanner + LastUpdatedBadge，確保 FR-034/FR-035 跨頁一致）→ `frontend/src/components/PageStatusHeader.tsx`
 
@@ -87,7 +87,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 ### 測試先行（US1）
 
 - [ ] T035 [US1] 設備列表整合測試（GET /api/devices 使用 7 real fixture/stub + 73 mock；驗 status/search/page/limit、real API 失敗時 stale/cache 行為、欄位完整；SC-001 人工計時結果寫入驗收紀錄；測試先於 T037/T038）→ `backend/tests/integration/devices.test.ts`、`docs/acceptance-sc001.md`
-- [ ] T036 [P] [US1] 設備總覽前端單元測試（DeviceTable、StatusFilter、SearchBar；驗 StatusBadge 色彩 token、篩選、搜尋 debounce、離線欄位顯示「--」、PageStatusHeader 顯示最後更新時間）→ `frontend/tests/unit/DeviceList/`
+- [ ] T036 [P] [US1] 設備總覽前端單元測試（DeviceTable、StatusFilter、SearchBar；驗 StatusBadge 色彩 token、篩選、搜尋 debounce、離線欄位顯示「--」、PageStatusHeader 顯示最後更新時間，頁面切換不建立第二個輪詢 timer）→ `frontend/tests/unit/DeviceList/`
 
 ### 後端實作（US1）
 
@@ -96,11 +96,11 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 ### 前端實作（US1）
 
-- [ ] T039 [US1] 建立 deviceStore（Zustand；輪詢 GET /api/devices、儲存 filter/search/page、保留 stale cache）→ `frontend/src/stores/deviceStore.ts`
+- [ ] T039 [US1] 建立 deviceStore（Zustand；提供 fetchDeviceList 供全域 PollingProvider 呼叫、儲存 filter/search/page、保留 stale cache）→ `frontend/src/stores/deviceStore.ts`
 - [ ] T040 [P] [US1] 建立 DeviceTable 元件（設備編號、客戶名稱、地點、StatusBadge、最後心跳；離線即時欄位「--」；點擊列導向 `/devices/:deviceId`）→ `frontend/src/pages/DeviceList/DeviceTable.tsx`
 - [ ] T041 [P] [US1] 建立 StatusFilter 元件（全部/正常/異常/離線/待維修，顯示各狀態數量）→ `frontend/src/pages/DeviceList/StatusFilter.tsx`
 - [ ] T042 [P] [US1] 建立 SearchBar 元件（設備編號或客戶名稱前綴模糊搜尋，顯示篩選結果數量）→ `frontend/src/pages/DeviceList/SearchBar.tsx`
-- [ ] T043 [US1] 組裝 DeviceList 頁面（PageStatusHeader + StatusFilter + SearchBar + DeviceTable；30 秒輪詢；桌面 1280px 以上版面）→ `frontend/src/pages/DeviceList/DeviceListPage.tsx`
+- [ ] T043 [US1] 組裝 DeviceList 頁面（PageStatusHeader + StatusFilter + SearchBar + DeviceTable；接入全域輪詢資料，不建立頁面級 timer；桌面 1280px 以上版面）→ `frontend/src/pages/DeviceList/DeviceListPage.tsx`
 
 **檢查點**：US1 可獨立展示登入後的設備總覽 MVP。
 
@@ -131,7 +131,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T053 [P] [US4] 建立 AlertFilter 元件（未處理/處理中/已解除與異常類型篩選）→ `frontend/src/pages/AlertCenter/AlertFilter.tsx`
 - [ ] T054 [P] [US4] 建立 AssignModal 元件（技師下拉、呼叫 assign API、繁中結果回饋、鍵盤可操作）→ `frontend/src/pages/AlertCenter/AssignModal.tsx`
 - [ ] T055 [P] [US4] 建立 ResolveButton 元件（確認對話框、resolutionNote、呼叫 resolve API、更新 store）→ `frontend/src/pages/AlertCenter/ResolveButton.tsx`
-- [ ] T056 [US4] 組裝 AlertCenter 頁面（PageStatusHeader + AlertFilter + AlertTable + AssignModal + ResolveButton；30 秒輪詢）→ `frontend/src/pages/AlertCenter/AlertCenterPage.tsx`
+- [ ] T056 [US4] 組裝 AlertCenter 頁面（PageStatusHeader + AlertFilter + AlertTable + AssignModal + ResolveButton；接入全域輪詢資料，不建立頁面級 timer）→ `frontend/src/pages/AlertCenter/AlertCenterPage.tsx`
 
 **檢查點**：US4 可獨立驗收即時告警管理流程。
 
@@ -158,7 +158,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T062 [P] [US2] 建立 RiskTable 元件（排名、設備編號、客戶、風險分數、風險主因 tag、建議行動、RankChangeBadge；點擊列導向 `/devices/:deviceId`）→ `frontend/src/pages/RiskRanking/RiskTable.tsx`
 - [ ] T063 [P] [US2] 建立 RankBadge 元件（Top 3 金色、其餘中性色；符合深色主題 AA 對比）→ `frontend/src/pages/RiskRanking/RankBadge.tsx`
 - [ ] T064 [P] [US2] 建立 RankChangeBadge 元件（上升/下降/不變，使用圖示與文字輔助，不只靠顏色）→ `frontend/src/pages/RiskRanking/RankChangeBadge.tsx`
-- [ ] T065 [US2] 組裝 RiskRanking 頁面（PageStatusHeader + RiskTable；30 秒輪詢但尊重後端 5 分鐘風險快取）→ `frontend/src/pages/RiskRanking/RiskRankingPage.tsx`
+- [ ] T065 [US2] 組裝 RiskRanking 頁面（PageStatusHeader + RiskTable；接入全域輪詢資料並尊重後端 5 分鐘風險快取，不建立頁面級 timer）→ `frontend/src/pages/RiskRanking/RiskRankingPage.tsx`
 
 **檢查點**：US2 可獨立驗收 Top 10 風險排序。
 
@@ -231,14 +231,14 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 ### 測試先行（US6）
 
-- [ ] T090 [US6] 老闆決策頁整合測試（GET /api/executive/summary 驗 KPI、technicianWorkload、topRiskClients；GET /api/executive/capacity?addDevices=10 驗 maxSafeAddDevices = totalMaxCapacity × 0.95 − currentDevices；測試先於 T092-T095）→ `backend/tests/integration/executive.test.ts`
+- [ ] T090 [US6] 老闆決策頁整合測試（GET /api/executive/summary 驗 KPI、technicianWorkload、topRiskClients；GET /api/executive/capacity?addDevices=10 驗 maxSafeAddDevices = totalMaxCapacity × 0.95 − currentDevices，顯示值向下取整且小於 0 時顯示 0；測試先於 T092-T095）→ `backend/tests/integration/executive.test.ts`
 - [ ] T091 [P] [US6] 老闆決策頁前端單元測試（KpiCard、WorkloadTable、RiskClientList、CapacityGauge；驗數值格式、進度條、風險評級、95% 安全線、PageStatusHeader）→ `frontend/tests/unit/ExecutiveDashboard/`
 
 ### 後端實作（US6）
 
-- [ ] T092 [US6] 實作 executiveService（totalDevices、totalTechnicians、avgDevicesPerTech、activeWorkOrders、completedThisMonth、MAX_WORK_ORDERS_PER_TECH 利用率、MAX_DEVICES_PER_TECH 擴張承載能力）→ `backend/src/services/executiveService.ts`
+- [ ] T092 [US6] 實作 executiveService（totalDevices、totalTechnicians、avgDevicesPerTech、activeWorkOrders、completedThisMonth、MAX_WORK_ORDERS_PER_TECH 利用率、MAX_DEVICES_PER_TECH 擴張承載能力；安全承接線固定為 95%，maxSafeAddDevices 向下取整且不得小於 0）→ `backend/src/services/executiveService.ts`
 - [ ] T093 [US6] 實作 GET /api/executive/summary 路由（kpi、technicianWorkload、topRiskClients、authGuard、TTL 300s）→ `backend/src/routes/executive.ts`
-- [ ] T094 [P] [US6] 實作 GET /api/executive/capacity 路由（addDevices query、projectedUtilization、maxSafeAddDevices、capacityCurve 0/5/10/15/20）→ `backend/src/routes/executive.ts`
+- [ ] T094 [P] [US6] 實作 GET /api/executive/capacity 路由（addDevices query、projectedUtilization、maxSafeAddDevices、capacityCurve 0/5/10/15/20；回應包含 safetyThreshold=95 與 overSafetyLine 標記）→ `backend/src/routes/executive.ts`
 - [ ] T095 [P] [US6] 實作 GET /api/risk/top-clients 路由（Top 5 高風險客戶、avgRiskScore、riskTier：≥70 高/40-69 中/<40 低、suggestedAction）→ `backend/src/routes/risk.ts`
 
 ### 前端實作（US6）
@@ -246,7 +246,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T096 [P] [US6] 建立 KpiCard 元件（三個 KPI：總設備數、維運人員數、每人平均設備數）→ `frontend/src/pages/ExecutiveDashboard/KpiCard.tsx`
 - [ ] T097 [P] [US6] 建立 WorkloadTable 元件（技師姓名、當前工單、本月完工、產能利用率進度條）→ `frontend/src/pages/ExecutiveDashboard/WorkloadTable.tsx`
 - [ ] T098 [P] [US6] 建立 RiskClientList 元件（Top 5 客戶、設備數、本月異常、風險評級、建議行動）→ `frontend/src/pages/ExecutiveDashboard/RiskClientList.tsx`
-- [ ] T099 [P] [US6] 建立 CapacityGauge 元件（ECharts 半圓儀表、擴張負載曲線、95% 安全承接線）→ `frontend/src/pages/ExecutiveDashboard/CapacityGauge.tsx`
+- [ ] T099 [P] [US6] 建立 CapacityGauge 元件（ECharts 半圓儀表、擴張負載曲線、95% 安全承接線、maxSafeAddDevices 為 0 時顯示超過安全線提示）→ `frontend/src/pages/ExecutiveDashboard/CapacityGauge.tsx`
 - [ ] T100 [US6] 組裝 ExecutiveDashboard 頁面（PageStatusHeader + KPI 卡片 + WorkloadTable + RiskClientList + CapacityGauge + addDevices 試算輸入）→ `frontend/src/pages/ExecutiveDashboard/ExecutiveDashboardPage.tsx`
 - [ ] T101 [US6] 建立 SC-005 決策流程驗收記錄（業務背景測試者從進入頁面到完成是否承接 N 台設備判斷，目標 ≤5 分鐘）→ `docs/acceptance-sc005.md`
 
@@ -264,14 +264,14 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T105 [P] 實作 GET/PUT /api/risk/rules 端點（讀寫 risk_score_weights，繁中錯誤訊息，authGuard）→ `backend/src/routes/risk.ts`
 - [ ] T106 [P] 建立深色主題與圖表對比自動檢查（Tailwind token、ECharts 背景與高對比色、狀態色語意一致）→ `frontend/tests/accessibility/theme-contrast.test.ts`
 - [ ] T107 [P] 建立離線與 stale 資料跨頁一致性整合測試（DeviceList、AlertCenter、RiskRanking、DeviceHistory、MonthlyReport、ExecutiveDashboard 均顯示 PageStatusHeader 與「資料可能過期」）→ `frontend/tests/integration/stale-data.test.ts`
-- [ ] T108 [P] 建立 lint/format 最終驗證報告產生腳本（frontend/backend ESLint + Prettier；零錯誤；函式圈複雜度 ≤10；必要 suppression 必須有註解）→ `scripts/quality-check.sh`、`docs/lint-report.md`
+- [ ] T108 [P] 建立 lint/format 最終驗證報告產生腳本（frontend/backend ESLint + Prettier；零錯誤；函式圈複雜度 ≤10；必要 suppression 必須有註解；掃描 dead code、commented-out blocks、TODO/FIXME/XXX，未附 issue 與目標 sprint 或超過一 sprint 者失敗）→ `scripts/quality-check.sh`、`docs/lint-report.md`
 - [ ] T109 [P] 建立 API 效能基準與 baseline 比對（k6：GET /api/devices、/api/alerts、/api/risk/top-devices、/api/reports/monthly、/api/executive/summary p95 ≤500ms；儲存 baseline，任一 tracked API p95 較 baseline 回歸 >10% 時 CI 失敗）→ `backend/tests/performance/api.k6.ts`、`backend/tests/performance/perf-baseline.json`、`.github/workflows/perf.yml`
 - [ ] T110 [P] 建立告警中心 SC-004 效能驗收（80 筆告警、GET /api/alerts?limit=50 p95 ≤500ms、前端頁面載入 ≤3 秒，截圖/結果入文件）→ `backend/tests/performance/alertCenter.perf.ts`、`docs/perf-sc004.md`
 - [ ] T111 [P] 建立月報 PDF SC-003 效能驗收（量測 html2canvas + jsPDF save 完成時間 ≤30 秒，記錄瓶頸與截圖）→ `frontend/src/utils/pdfPerfTest.ts`、`docs/perf-sc003.md`
 - [ ] T112 建立測試覆蓋率 gate（前端 Vitest coverage、後端 Jest coverageThreshold；修改模組 ≥80%，輸出 lcov）→ `frontend/vite.config.ts`、`backend/jest.config.ts`、`.github/workflows/ci.yml`
 - [ ] T113 [P] 建立 WCAG 2.1 AA 無障礙測試（jest-axe 掃描 StatusBadge、AlertBanner、DeviceTable、AlertTable、RiskTable 與六頁主要元件；axe 違規歸零）→ `frontend/tests/accessibility/`
 - [ ] T114 [P] 建立使用者工作流程可用性審查文件（逐一走查 US1–US6、導覽、告警三步驟、月報匯出、決策頁；待改善項須列入追蹤）→ `docs/ux-review.md`
-- [ ] T115 建立完整 PR CI workflow（frontend/backend lint、unit、integration、coverage、build、critical path benchmark、效能 baseline 比對與 query plan review gate；任一失敗、任一 tracked metric 較 baseline 回歸 >10%、或缺少必要 query plan artifact 均阻擋合併）→ `.github/workflows/ci.yml`
+- [ ] T115 建立完整 PR CI workflow（frontend/backend lint、unit、integration、coverage、build、quality-check、critical path benchmark、效能 baseline 比對與 query plan review gate；任一失敗、任一 tracked metric 較 baseline 回歸 >10%、缺少必要 query plan artifact、或存在未核准 dead code/commented-out blocks/過期 TODO 均阻擋合併）→ `.github/workflows/ci.yml`
 - [ ] T116 [P] 建立前端 render 與 bundle 預算基準與 baseline 比對（六頁首次 render/互動後 render p95 ≤500ms；gzip bundle ≤2MB；任一 tracked UI render 或 bundle 指標較 baseline 回歸 >10% 時 CI 失敗）→ `frontend/tests/performance/render.benchmark.ts`、`frontend/tests/performance/bundle-budget.test.ts`、`frontend/tests/performance/frontend-perf-baseline.json`
 - [ ] T117 [P] 建立後端資源預算與輪詢壓測 baseline（後端記憶體 ≤512MB、10 並發 30 秒輪詢 CPU <50%、無記憶體洩漏；任一 tracked resource 指標較 baseline 回歸 >10% 時 CI 失敗；整合 perf workflow）→ `backend/tests/performance/resource-budget.k6.ts`、`backend/tests/performance/resource-baseline.json`、`docs/perf-resource-budget.md`
 - [ ] T118 建立 staging 部署驗證流程（production 前必須 staging；docker compose smoke test、health、登入、六頁主要路由、API health）→ `.github/workflows/staging.yml`、`docs/staging-release-checklist.md`
@@ -343,6 +343,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - 每個故事的測試任務必須先完成並確認失敗。
 - 所有新增/修改模組覆蓋率 ≥ 80%。
 - 所有前後端函式圈複雜度 ≤10，違反者必須拆分或在 PR 中修正，不得以未註解 suppression 略過。
+- 不得合併未核准 dead code、commented-out blocks、或未附 issue/目標 sprint 且超過一 sprint 的 TODO/FIXME/XXX。
 - API p95 與主要 UI render p95 必須 ≤500ms。
 - 所有 tracked performance metrics 必須與 baseline 比對，任一指標回歸 >10% 必須阻擋合併。
 - 所有新增或修改的 MySQL/Drizzle 查詢必須附 query plan / index review artifact。
