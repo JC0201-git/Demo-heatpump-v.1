@@ -24,8 +24,8 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 
 - [ ] T001 建立前端專案架構（Vite 5 + React 18 + TypeScript 5 + Tailwind CSS v3 + React Router v6 + ECharts `echarts-for-react` + Zustand + Axios + jsPDF + html2canvas）→ `frontend/`
 - [ ] T002 [P] 建立後端專案架構（Fastify 4 + TypeScript 5 + Drizzle ORM + mysql2 + influx@5 + bcryptjs + node-cron + @fastify/jwt + @fastify/cookie + @fastify/cors + @fastify/rate-limit + node-cache）→ `backend/`
-- [ ] T003 [P] 設定前端 ESLint、Prettier、Vitest 與 Testing Library 基礎設定（Constitution I/II）→ `frontend/.eslintrc.cjs`、`frontend/.prettierrc`、`frontend/vite.config.ts`
-- [ ] T004 [P] 設定後端 ESLint、Prettier、Jest 與 Supertest 基礎設定（Constitution I/II）→ `backend/.eslintrc.cjs`、`backend/.prettierrc`、`backend/jest.config.ts`
+- [ ] T003 [P] 設定前端 ESLint、Prettier、Vitest 與 Testing Library 基礎設定（Constitution I/II；ESLint 必須啟用 `complexity: ["error", 10]`，函式圈複雜度超過 10 即失敗）→ `frontend/.eslintrc.cjs`、`frontend/.prettierrc`、`frontend/vite.config.ts`
+- [ ] T004 [P] 設定後端 ESLint、Prettier、Jest 與 Supertest 基礎設定（Constitution I/II；ESLint 必須啟用 `complexity: ["error", 10]`，函式圈複雜度超過 10 即失敗）→ `backend/.eslintrc.cjs`、`backend/.prettierrc`、`backend/jest.config.ts`
 - [ ] T005 [P] 建立 Docker Compose 服務定義與 Nginx 反向代理（`/api/*` → backend-api:3001，`/*` → frontend:80）→ `docker/docker-compose.yml`、`docker/nginx/default.conf`
 - [ ] T006 [P] 建立環境變數範本與 git ignore（JWT_SECRET、MYSQL_*、INFLUXDB_*、DEVICE_CACHE_TTL=25、REPORT_CACHE_TTL=300、MAX_DEVICES_PER_TECH=20、MAX_WORK_ORDERS_PER_TECH=10、ALERT_OVERDUE_HOURS=24）→ `docker/env.example`、`.gitignore`
 
@@ -264,21 +264,22 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - [ ] T105 [P] 實作 GET/PUT /api/risk/rules 端點（讀寫 risk_score_weights，繁中錯誤訊息，authGuard）→ `backend/src/routes/risk.ts`
 - [ ] T106 [P] 建立深色主題與圖表對比自動檢查（Tailwind token、ECharts 背景與高對比色、狀態色語意一致）→ `frontend/tests/accessibility/theme-contrast.test.ts`
 - [ ] T107 [P] 建立離線與 stale 資料跨頁一致性整合測試（DeviceList、AlertCenter、RiskRanking、DeviceHistory、MonthlyReport、ExecutiveDashboard 均顯示 PageStatusHeader 與「資料可能過期」）→ `frontend/tests/integration/stale-data.test.ts`
-- [ ] T108 [P] 建立 lint/format 最終驗證報告產生腳本（frontend/backend ESLint + Prettier；零錯誤，必要 suppression 必須有註解）→ `scripts/quality-check.sh`、`docs/lint-report.md`
-- [ ] T109 [P] 建立 API 效能基準（k6：GET /api/devices、/api/alerts、/api/risk/top-devices、/api/reports/monthly、/api/executive/summary p95 ≤500ms；整合 CI）→ `backend/tests/performance/api.k6.ts`、`.github/workflows/perf.yml`
+- [ ] T108 [P] 建立 lint/format 最終驗證報告產生腳本（frontend/backend ESLint + Prettier；零錯誤；函式圈複雜度 ≤10；必要 suppression 必須有註解）→ `scripts/quality-check.sh`、`docs/lint-report.md`
+- [ ] T109 [P] 建立 API 效能基準與 baseline 比對（k6：GET /api/devices、/api/alerts、/api/risk/top-devices、/api/reports/monthly、/api/executive/summary p95 ≤500ms；儲存 baseline，任一 tracked API p95 較 baseline 回歸 >10% 時 CI 失敗）→ `backend/tests/performance/api.k6.ts`、`backend/tests/performance/perf-baseline.json`、`.github/workflows/perf.yml`
 - [ ] T110 [P] 建立告警中心 SC-004 效能驗收（80 筆告警、GET /api/alerts?limit=50 p95 ≤500ms、前端頁面載入 ≤3 秒，截圖/結果入文件）→ `backend/tests/performance/alertCenter.perf.ts`、`docs/perf-sc004.md`
 - [ ] T111 [P] 建立月報 PDF SC-003 效能驗收（量測 html2canvas + jsPDF save 完成時間 ≤30 秒，記錄瓶頸與截圖）→ `frontend/src/utils/pdfPerfTest.ts`、`docs/perf-sc003.md`
-- [ ] T112 [P] 建立測試覆蓋率 gate（前端 Vitest coverage、後端 Jest coverageThreshold；修改模組 ≥80%，輸出 lcov）→ `frontend/vite.config.ts`、`backend/jest.config.ts`、`.github/workflows/ci.yml`
+- [ ] T112 建立測試覆蓋率 gate（前端 Vitest coverage、後端 Jest coverageThreshold；修改模組 ≥80%，輸出 lcov）→ `frontend/vite.config.ts`、`backend/jest.config.ts`、`.github/workflows/ci.yml`
 - [ ] T113 [P] 建立 WCAG 2.1 AA 無障礙測試（jest-axe 掃描 StatusBadge、AlertBanner、DeviceTable、AlertTable、RiskTable 與六頁主要元件；axe 違規歸零）→ `frontend/tests/accessibility/`
 - [ ] T114 [P] 建立使用者工作流程可用性審查文件（逐一走查 US1–US6、導覽、告警三步驟、月報匯出、決策頁；待改善項須列入追蹤）→ `docs/ux-review.md`
-- [ ] T115 [P] 建立完整 PR CI workflow（frontend/backend lint、unit、integration、coverage、build、critical path benchmark；任一失敗阻擋合併）→ `.github/workflows/ci.yml`
-- [ ] T116 [P] 建立前端 render 與 bundle 預算基準（六頁首次 render/互動後 render p95 ≤500ms；gzip bundle ≤2MB）→ `frontend/tests/performance/render.benchmark.ts`、`frontend/tests/performance/bundle-budget.test.ts`
-- [ ] T117 [P] 建立後端資源預算與輪詢壓測（後端記憶體 ≤512MB、10 並發 30 秒輪詢 CPU <50%、無記憶體洩漏；整合 perf workflow）→ `backend/tests/performance/resource-budget.k6.ts`、`docs/perf-resource-budget.md`
+- [ ] T115 建立完整 PR CI workflow（frontend/backend lint、unit、integration、coverage、build、critical path benchmark、效能 baseline 比對與 query plan review gate；任一失敗、任一 tracked metric 較 baseline 回歸 >10%、或缺少必要 query plan artifact 均阻擋合併）→ `.github/workflows/ci.yml`
+- [ ] T116 [P] 建立前端 render 與 bundle 預算基準與 baseline 比對（六頁首次 render/互動後 render p95 ≤500ms；gzip bundle ≤2MB；任一 tracked UI render 或 bundle 指標較 baseline 回歸 >10% 時 CI 失敗）→ `frontend/tests/performance/render.benchmark.ts`、`frontend/tests/performance/bundle-budget.test.ts`、`frontend/tests/performance/frontend-perf-baseline.json`
+- [ ] T117 [P] 建立後端資源預算與輪詢壓測 baseline（後端記憶體 ≤512MB、10 並發 30 秒輪詢 CPU <50%、無記憶體洩漏；任一 tracked resource 指標較 baseline 回歸 >10% 時 CI 失敗；整合 perf workflow）→ `backend/tests/performance/resource-budget.k6.ts`、`backend/tests/performance/resource-baseline.json`、`docs/perf-resource-budget.md`
 - [ ] T118 建立 staging 部署驗證流程（production 前必須 staging；docker compose smoke test、health、登入、六頁主要路由、API health）→ `.github/workflows/staging.yml`、`docs/staging-release-checklist.md`
 - [ ] T119 [P] 補齊安全強化與驗證（Nginx CSP/X-Frame-Options/X-Content-Type-Options；CORS 僅 ALLOWED_ORIGIN；JWT_SECRET ≥64；cookie httpOnly/SameSite=Lax；登入限流與防帳號枚舉測試）→ `docker/nginx/default.conf`、`backend/src/app.ts`、`backend/tests/integration/security.test.ts`
 - [ ] T120 驗證 Docker Compose 全端整合啟動（nginx 代理、前後端連線、健康檢查、登入與主要路由 smoke test）→ `docker/docker-compose.yml`、`docs/docker-smoke-test.md`
 - [ ] T121 [P] 執行 quickstart.md 驗證並修正驗證紀錄（本機啟動、migration、seed、前後端測試、Docker Compose、常見問題命令可執行；結果以繁中記錄）→ `specs/001-heatpump-dashboard-6pages/quickstart.md`、`docs/quickstart-validation.md`
 - [ ] T122 [P] 同步最終規格追溯矩陣（FR-001～FR-036、SC-001～SC-007 對應任務 ID；供 PR 描述引用）→ `docs/spec-traceability.md`
+- [ ] T123 建立資料庫 query plan / index review gate（針對新增或修改的 Drizzle/MySQL 查詢收集 `EXPLAIN` 輸出、驗證索引使用與查詢計畫效率；若缺少 query plan artifact 或出現未註記的 full table scan，PR CI 必須失敗）→ `backend/tests/performance/query-plan-review.test.ts`、`docs/query-plan-review.md`、`.github/workflows/ci.yml`
 
 ---
 
@@ -314,7 +315,7 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 - **P1 故事**：US1（T035～T043）與 US4（T044～T056）可由不同人同時推進。
 - **P2 故事**：US2（T057～T065）與 US3（T066～T078）可平行，但共用 `backend/src/routes/devices.ts` 的 US3 任務需協調。
 - **P3 故事**：US5（T079～T089）與 US6（T090～T101）可平行。
-- **收尾**：T102、T104、T106～T117、T119、T121、T122 多數可平行；T118/T120 建議在 Docker 與 CI 初步完成後執行。
+- **收尾**：T102、T104、T106～T111、T113～T114、T116～T117、T119、T121、T122 多數可平行；T112/T115/T118/T120/T123 建議在 Docker、CI 與效能 baseline 初步完成後執行。
 
 ---
 
@@ -335,13 +336,16 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 | M2 P1 完成 | + 告警中心 | T044～T056 |
 | M3 P2 完成 | + 風險排序 + 單機履歷 | T057～T078 |
 | M4 全功能 | + 月報 + 老闆決策頁 | T079～T101 |
-| Release Gate | 品質、安全、效能、staging | T102～T122 |
+| Release Gate | 品質、安全、效能、staging | T102～T123 |
 
 ### 品質閘門
 
 - 每個故事的測試任務必須先完成並確認失敗。
 - 所有新增/修改模組覆蓋率 ≥ 80%。
+- 所有前後端函式圈複雜度 ≤10，違反者必須拆分或在 PR 中修正，不得以未註解 suppression 略過。
 - API p95 與主要 UI render p95 必須 ≤500ms。
+- 所有 tracked performance metrics 必須與 baseline 比對，任一指標回歸 >10% 必須阻擋合併。
+- 所有新增或修改的 MySQL/Drizzle 查詢必須附 query plan / index review artifact。
 - 告警中心 80 筆告警頁面載入 ≤3 秒。
 - 月報 PDF 產生 ≤30 秒，月報準備流程 ≤5 分鐘。
 - 後端記憶體 ≤512MB，前端 gzip bundle ≤2MB。
@@ -361,8 +365,8 @@ description: "熱泵／熱水系統監控儀表板（6 頁）任務清單"
 | 第 6 階段：US3 單機履歷 | 13 | T066～T078 |
 | 第 7 階段：US5 月報雛形 | 11 | T079～T089 |
 | 第 8 階段：US6 老闆決策頁 | 12 | T090～T101 |
-| 第 9 階段：收尾與橫切面 | 21 | T102～T122 |
-| **合計** | **122** | |
+| 第 9 階段：收尾與橫切面 | 22 | T102～T123 |
+| **合計** | **123** | |
 
 **平行機會**：標記 [P] 的任務可在不同檔案與不互相依賴時平行執行。  
 **建議 MVP 範圍**：T001～T043，交付登入、共用基礎、real/mock 混合設備總覽。
